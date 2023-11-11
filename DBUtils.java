@@ -133,7 +133,7 @@ public class DBUtils {
 
     private static PreparedStatement readChatPS(Connection connection, String id, String password)
             throws SQLException {
-        PreparedStatement ps = connection.prepareStatement("SELECT func_read_chat(?,?)");
+        PreparedStatement ps = connection.prepareStatement("CALL proc_read_chat(?,?)");
         ps.setString(1, id);
         ps.setString(2, password);
         return ps;

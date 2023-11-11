@@ -6,6 +6,13 @@
     "configurations": [
         {
             "type": "java",
+            "name": "KeyUtils",
+            "request": "launch",
+            "mainClass": "KeyUtils",
+            "projectName": "Practical 2_58731bf8"
+        },
+        {
+            "type": "java",
             "name": "SimpleEchoClient",
             "request": "launch",
             "mainClass": "SimpleEchoClient",

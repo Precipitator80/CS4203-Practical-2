@@ -42,61 +42,6 @@ import java.security.cert.X509Certificate;
 
 public class SslUtil {
     /**
-     * Create an SslSocketFactory using PEM encrypted certificate files. Mutual SSL Authentication is NOT supported.
-     *
-     * @param caCrtFile
-     *            CA certificate of remote server.
-     * @return
-     */
-    public static SSLSocketFactory getSSLSocketFactory(final String caCrtFile) {
-        try {
-
-            /**
-             * Add BouncyCastle as a Security Provider
-             */
-            Security.addProvider(new BouncyCastleProvider());
-
-            JcaX509CertificateConverter certificateConverter = new JcaX509CertificateConverter().setProvider("BC");
-
-            /**
-             * Load Certificate Authority (CA) certificate
-             */
-            PEMParser reader = new PEMParser(new FileReader(caCrtFile));
-            X509CertificateHolder caCertHolder = (X509CertificateHolder) reader.readObject();
-            reader.close();
-
-            X509Certificate caCert = certificateConverter.getCertificate(caCertHolder);
-
-            /**
-             * CA certificate is used to authenticate server
-             */
-            KeyStore caKeyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-            caKeyStore.load(null, null);
-            caKeyStore.setCertificateEntry("ca-certificate", caCert);
-
-            TrustManagerFactory trustManagerFactory = TrustManagerFactory
-                    .getInstance(TrustManagerFactory.getDefaultAlgorithm());
-            trustManagerFactory.init(caKeyStore);
-
-            /**
-             * Create SSL socket factory
-             */
-            SSLContext context = SSLContext.getInstance("TLSv1.3");
-            context.init(null, trustManagerFactory.getTrustManagers(), null);
-
-            /**
-             * Return the newly created socket factory object
-             */
-            return context.getSocketFactory();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return null;
-    }
-
-    /**
      * Create an SslSocketFactory using PEM encrypted certificate files. Mutual SSL Authentication is supported.
      *
      * @param caCrtFile

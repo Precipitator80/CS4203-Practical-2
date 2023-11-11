@@ -4,7 +4,6 @@
 import java.io.*;
 import java.net.*;
 
-//import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
@@ -14,6 +13,8 @@ public class SecureEchoClient extends AbstractEchoClient {
         echoClient.readServerData(args);
         echoClient.start();
     }
+
+    boolean shuttingDown;
 
     @Override
     public void start() {
@@ -27,8 +28,8 @@ public class SecureEchoClient extends AbstractEchoClient {
                 SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(hostAddress, port);
 
                 // Set up a reader and writer to transfer data between the client and server.
-                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                BufferedReader serverInput = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                PrintWriter serverOutput = new PrintWriter(socket.getOutputStream(), true);
 
                 // Use a buffered reader to let the user send messages through the client.
                 BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in))) {
@@ -36,21 +37,10 @@ public class SecureEchoClient extends AbstractEchoClient {
             System.out.println("Connected to Echo Server. Type 'exit' to quit.");
 
             // Wait for any messages from the server.
-            listenForMessages(socket, userInput);
+            listenForMessages(socket, serverInput);
 
             // Wait for any input from the user to send to the server.
-            String userInputLine;
-            while (socket.isConnected()) {
-                if ((userInputLine = userInput.readLine()) != null) {
-                    // Send user input to the server.
-                    out.println(userInputLine);
-                }
-                if ("exit".equalsIgnoreCase(userInputLine)) {
-                    System.out.println("Closing socket.");
-                    socket.close();
-                    break;
-                }
-            }
+            sendMessages(socket, serverOutput, userInput);
         } catch (UnknownHostException e) {
             System.err.println("Don't know about host " + hostAddress);
             System.exit(1);
@@ -61,22 +51,45 @@ public class SecureEchoClient extends AbstractEchoClient {
         }
     }
 
-    public void listenForMessages(SSLSocket socket, BufferedReader in) {
+    public void sendMessages(SSLSocket socket, PrintWriter serverOutput, BufferedReader userInput) throws IOException {
+        String userInputLine;
+        while (socket.isConnected()) {
+            if ((userInputLine = userInput.readLine()) != null) {
+                // Send user input to the server.
+                serverOutput.println(userInputLine);
+            }
+            if ("exit".equalsIgnoreCase(userInputLine)) {
+                shuttingDown = true;
+                System.out.println("Closing socket and shutting down client.");
+                socket.close();
+                break;
+            }
+        }
+    }
+
+    // Java Socket Programming - Multiple Clients Chat - WittCode - https://youtu.be/gLfuZrrfKes - Accessed 11.11.2023
+    public void listenForMessages(SSLSocket socket, BufferedReader serverInput) {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                while (socket.isConnected()) {
-                    try {
+                try {
+                    while (socket.isConnected()) {
                         // Get any messages from the server and print them.
                         String serverResponse;
-                        if ((serverResponse = in.readLine()) != null) {
-                            System.out.println("Server response: " + serverResponse);
+                        if ((serverResponse = serverInput.readLine()) != null) {
+                            if (!shuttingDown) {
+                                System.out.println("Server response: " + serverResponse);
+                            }
                         }
-                    } catch (IOException e) {
+                    }
+                } catch (IOException e) {
+                    if (!shuttingDown) {
+                        System.out.println("Error while listening for server messages.");
                         System.out.println(e.toString());
                     }
                 }
             }
         }).start();
     }
+
 }

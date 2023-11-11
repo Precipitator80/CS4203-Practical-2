@@ -32,25 +32,21 @@ public class SecureEchoServer extends AbstractEchoServer {
             while (!serverSocket.isClosed()) {
                 // Accept connections from clients attempting to connect.
                 SSLSocket clientSocket = (SSLSocket) serverSocket.accept();
-                try (
-                        // Set up a reader and writer to transfer data between the client and server.
-                        BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                        PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
+                try {
                     // Perform a handshake with the client.
                     clientSocket.startHandshake();
                     System.out.println("Client connected: " + clientSocket.getInetAddress());
 
                     // Create a new thread to handle the client.
-                    ClientHandler clientHandler = new ClientHandler(clientSocket, in, out);
-                    new Thread(clientHandler);
+                    new Thread(new ClientHandler(clientSocket)).start();
                 } catch (SSLHandshakeException e) {
                     // Handshake failed. Log the error and close the connection.
                     System.out.println("Handshake failed with client: " + clientSocket.getInetAddress());
+                    clientSocket.close();
                 } catch (SSLException e) {
                     System.out.println(
                             "Exception caught when trying to handle a client. This client may have been unauthorised.");
                     System.out.println(e.getMessage());
-                } finally {
                     clientSocket.close();
                 }
             }

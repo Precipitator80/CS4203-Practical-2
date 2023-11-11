@@ -27,11 +27,13 @@ CREATE TABLE chat_line (
 -- Create functions
 /*----------------------------------------------*/
 -- Read messages from a chat if authorised.
-CREATE OR REPLACE FUNCTION func_read_chat(chat_id INT, chat_password VARCHAR(64)) RETURNS TEXT BEGIN
-DECLARE chat_message TEXT;
-CALL proc_read_chat(chat_id, chat_password, chat_message);
-RETURN chat_message;
-END;
+/*
+ CREATE OR REPLACE FUNCTION func_read_chat(chat_id INT, chat_password VARCHAR(64)) RETURNS TEXT BEGIN
+ DECLARE chat_message TEXT;
+ CALL proc_read_chat(chat_id, chat_password, chat_message);
+ RETURN chat_message;
+ END;
+ */
 /*----------------------------------------------*/
 -- Check whether an ID and password match a chat.
 CREATE OR REPLACE FUNCTION func_valid_chat_credentials(chat_id INT, chat_password VARCHAR(64)) RETURNS BOOLEAN BEGIN RETURN(
@@ -64,14 +66,15 @@ END;
 -- Only allow reading a chat if the user is authorised.
 CREATE OR REPLACE PROCEDURE proc_read_chat(
         IN chat_id INT,
-        IN chat_password VARCHAR(64),
-        OUT chat_message TEXT
+        IN chat_password VARCHAR(64)
     ) BEGIN IF func_valid_chat_credentials(chat_id, chat_password) THEN
-SELECT max(line_text)
+SELECT line_text
 FROM chat_line
-WHERE chat_id = chat_line.chat_id INTO chat_message;
-ELSE
-SELECT "Could not read chat. Error when checking credentials." INTO chat_message;
+WHERE chat_id = chat_line.chat_id
+ORDER BY chat_line.chat_id DESC
+LIMIT 10;
+ELSE SIGNAL SQLSTATE '45001'
+SET message_text = "Could not read chat. Error when checking credentials.";
 END IF;
 END;
 /*------------------------------------------------------------------------------------------------*/
@@ -88,3 +91,8 @@ CALL proc_create_chat(
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
 );
 CALL proc_create_chat_line(1, "This is the first message!");
+CALL proc_create_chat_line(1, "This is the second message!");
+CALL proc_create_chat_line(1, "This is the third message!");
+CALL proc_create_chat_line(1, "This is the fourth message!");
+CALL proc_create_chat_line(1, "This is the fifth message!");
+CALL proc_create_chat_line(1, "This is the sixth message!");
