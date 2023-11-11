@@ -1,0 +1,30 @@
+{
+    "java.project.referencedLibraries": [
+        "lib/**/*.jar",
+        "bcprov-jdk18on-176.jar",
+        "bctls-jdk18on-176.jar",
+        "Libraries/bcutil-jdk18on-176.jar",
+        "Libraries/bctls-jdk18on-176.jar",
+        "Libraries/bcprov-jdk18on-176.jar",
+        "Libraries/bcpkix-jdk18on-176.jar",
+        "Libraries/bcpg-jdk18on-176.jar",
+        "Libraries/bcmail-jdk18on-176.jar",
+        "Libraries/mariadb-java-client-3.3.0.jar"
+    ],
+    "sqltools.connections": [
+        {
+            "mysqlOptions": {
+                "authProtocol": "default",
+                "enableSsl": "Disabled"
+            },
+            "previewLimit": 50,
+            "server": "bms1.teaching.cs.st-andrews.ac.uk",
+            "port": 3306,
+            "driver": "MariaDB",
+            "username": "bms1",
+            "password": "3fpj3!3JZ2x5zT",
+            "database": "bms1_cs4203p2",
+            "name": "School DB CS4203P2"
+        }
+    ]
+}

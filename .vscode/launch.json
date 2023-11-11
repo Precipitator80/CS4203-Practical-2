@@ -1,0 +1,112 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "SimpleEchoClient",
+            "request": "launch",
+            "mainClass": "SimpleEchoClient",
+            "projectName": "Practical 2_58731bf8"
+        },
+        {
+            "type": "java",
+            "name": "SecureEchoClient",
+            "request": "launch",
+            "mainClass": "SecureEchoClient",
+            "projectName": "Practical 2_58731bf8"
+        },
+        {
+            "type": "java",
+            "name": "SecureEchoServer",
+            "request": "launch",
+            "mainClass": "SecureEchoServer",
+            "projectName": "Practical 2_58731bf8"
+        },
+        {
+            "type": "java",
+            "name": "SslUtil",
+            "request": "launch",
+            "mainClass": "SslUtil",
+            "projectName": "Exercise 2_dfa2860c"
+        },
+        {
+            "type": "java",
+            "name": "TLSServer",
+            "request": "launch",
+            "mainClass": "TLSServer",
+            "projectName": "Exercise 2_dfa2860c"
+        },
+        {
+            "type": "java",
+            "name": "SSLSocketClient",
+            "request": "launch",
+            "mainClass": "SSLSocketClient",
+            "projectName": "Exercise 2_dfa2860c"
+        },
+        {
+            "type": "java",
+            "name": "SSLSocketEchoServer",
+            "request": "launch",
+            "mainClass": "SSLSocketEchoServer",
+            "projectName": "Exercise 2_dfa2860c"
+        },
+        {
+            "type": "java",
+            "name": "EchoClient",
+            "request": "launch",
+            "mainClass": "EchoClient",
+            "projectName": "Exercise 2_dfa2860c"
+        },
+        {
+            "type": "java",
+            "name": "EchoServer",
+            "request": "launch",
+            "mainClass": "EchoServer",
+            "projectName": "Exercise 2_dfa2860c"
+        },
+        {
+            "type": "java",
+            "name": "SecureEchoClient",
+            "request": "launch",
+            "mainClass": "SecureEchoClient",
+            "projectName": "Exercise 2_dfa2860c"
+        },
+        {
+            "type": "java",
+            "name": "SecureEchoServer",
+            "request": "launch",
+            "mainClass": "SecureEchoServer",
+            "projectName": "Exercise 2_dfa2860c"
+        },
+        {
+            "type": "java",
+            "name": "SimpleEchoClient",
+            "request": "launch",
+            "mainClass": "SimpleEchoClient",
+            "projectName": "Exercise 2_dfa2860c"
+        },
+        {
+            "type": "java",
+            "name": "HelloWorld",
+            "request": "launch",
+            "mainClass": "HelloWorld",
+            "projectName": "Exercise 2_dfa2860c"
+        },
+        {
+            "type": "java",
+            "name": "SimpleEchoServer",
+            "request": "launch",
+            "mainClass": "SimpleEchoServer",
+            "projectName": "Exercise 2_dfa2860c"
+        },
+        {
+            "type": "java",
+            "name": "Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        }
+    ]
+}
