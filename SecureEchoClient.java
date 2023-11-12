@@ -15,6 +15,7 @@ public class SecureEchoClient extends AbstractEchoClient {
     }
 
     boolean shuttingDown;
+    HandleModes.Enum handleMode = HandleModes.Enum.CHAT_SELECT;
 
     @Override
     public void start() {
@@ -55,14 +56,39 @@ public class SecureEchoClient extends AbstractEchoClient {
         String userInputLine;
         while (socket.isConnected()) {
             if ((userInputLine = userInput.readLine()) != null) {
-                // Send user input to the server.
-                serverOutput.println(userInputLine);
-            }
-            if ("exit".equalsIgnoreCase(userInputLine)) {
-                shuttingDown = true;
-                System.out.println("Closing socket and shutting down client.");
-                socket.close();
-                break;
+                switch (handleMode) {
+                    case CHALLENGE_RESPONSE:
+
+                        break;
+                    case CHAT:
+                        // Check whether the user wants to quit first.
+                        if ("exit".equalsIgnoreCase(userInputLine)) {
+                            shuttingDown = true;
+                            System.out.println("Closing socket and shutting down client.");
+                            socket.close();
+                            return;
+                        }
+
+                        // If the user does not want to quit, encrypt their chat message and send it to the server.
+                        try {
+                            String encryptedString = KeyUtils.encryptString(userInputLine, KeyUtils.readAESKey(1),
+                                    KeyUtils.AES);
+                            serverOutput.println(encryptedString);
+                        } catch (Exception e) {
+                            System.out.println("Failed to encrypt message.");
+                        }
+                        break;
+                    default:
+                        // Send user input to the server, ensuring that the handle mode has not switched out of unencrypted mode.
+                        serverOutput.println(userInputLine);
+                        if ("exit".equalsIgnoreCase(userInputLine)) {
+                            shuttingDown = true;
+                            System.out.println("Closing socket and shutting down client.");
+                            socket.close();
+                            return;
+                        }
+                        break;
+                }
             }
         }
     }
@@ -78,7 +104,24 @@ public class SecureEchoClient extends AbstractEchoClient {
                         String serverResponse;
                         if ((serverResponse = serverInput.readLine()) != null) {
                             if (!shuttingDown) {
-                                System.out.println("Server response: " + serverResponse);
+                                checkHandleMode(serverResponse);
+                                switch (handleMode) {
+                                    case CHAT:
+                                        try {
+                                            // TODO REMOVE MAGIC NUMBER
+                                            // Decrypt the message before displaying it. (FOR NOW JUST SHOW ENCRYPTED MESSAGE).
+                                            String decryptedString = KeyUtils.decryptString(serverResponse,
+                                                    KeyUtils.readAESKey(1),
+                                                    KeyUtils.AES);
+                                            System.out.println("Server response (decrypted): " + decryptedString);
+                                        } catch (Exception e) {
+                                            System.out.println("Server response    (direct): " + serverResponse);
+                                        }
+                                        break;
+                                    default:
+                                        System.out.println("Server response: " + serverResponse);
+                                        break;
+                                }
                             }
                         }
                     }
@@ -92,4 +135,16 @@ public class SecureEchoClient extends AbstractEchoClient {
         }).start();
     }
 
+    private void checkHandleMode(String serverResponse) {
+        if (serverResponse.equals(HandleModes.CHAT_SELECT_STRING)) {
+            handleMode = HandleModes.Enum.CHAT_SELECT;
+            System.out.println("SWITCHED HANDLE MODE: " + handleMode);
+        } else if (serverResponse.equals(HandleModes.CHALLENGE_RESPONSE_STRING)) {
+            handleMode = HandleModes.Enum.CHALLENGE_RESPONSE;
+            System.out.println("SWITCHED HANDLE MODE: " + handleMode);
+        } else if (serverResponse.equals(HandleModes.CHAT_STRING)) {
+            handleMode = HandleModes.Enum.CHAT;
+            System.out.println("SWITCHED HANDLE MODE: " + handleMode);
+        }
+    }
 }

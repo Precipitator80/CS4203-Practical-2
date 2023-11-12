@@ -3,7 +3,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.sql.SQLException;
-import java.util.Stack;
+import java.util.Queue;
 
 import javax.net.ssl.SSLSocket;
 
@@ -41,57 +41,65 @@ public class ClientHandler implements Runnable {
     private void chatSelect()
             throws IOException {
         boolean authorised = false;
-        String chatID;
-        String password;
+        int chatID;
 
         clientOutput.println("Please select a chat number."/*or type \"create\" to start creating a new chat."*/);
         while (!authorised) {
-            // Ask for a chat.
-            chatID = clientInput.readLine();
-
-            // Confirm choice and ask for a password.
-            clientOutput.println("You have selected " + chatID + ". Please enter the chat's password.");
-            password = clientInput.readLine();
-
-            // Check that both make sense.
+            String userInput = clientInput.readLine();
             try {
-                if (DBUtils.validChatCredentials(chatID, password)) {
-                    authorised = true;
+                // Ask for a chat.
+                chatID = Integer.parseInt(userInput);
 
-                    // Enter a server chat room.
-                    chatBackend(chatID, password);
+                // Confirm choice and ask for a password.
+                clientOutput.println("You have selected " + chatID + ". Checking key.");
+                clientOutput.println(HandleModes.CHALLENGE_RESPONSE_STRING);
 
-                    // Once the chat room has been exited, repeat the chat selection.
-                    clientOutput.println("Exited chat. Please select another chat number or type exit to disconnect.");
-                } else {
-                    clientOutput.println("Invalid credentials. Please select a chat number.");
+                // Send a challenge to the client.
+                // FOR NOW JUST ALLOW THEM IN
+                try {
+                    if (true) {
+                        authorised = true;
+
+                        // Enter a server chat room.
+                        chatBackend(chatID);
+
+                        // Once the chat room has been exited, repeat the chat selection.
+                        clientOutput
+                                .println("Exited chat. Please select another chat number or type exit to disconnect.");
+                    } else {
+                        clientOutput.println("Invalid credentials. Please select a chat number.");
+                    }
+                } catch (/*SQL*/Exception e) {
+                    clientOutput.println(
+                            "Failed to check credentials against database. " + e.toString());
                 }
-            } catch (SQLException e) {
-                clientOutput.println(
-                        "Failed to check credentials against database. " + e.toString());
+            } catch (NumberFormatException e) {
+                clientOutput.println("Failed to read \"" + userInput + "\". Please enter a valid integer.");
             }
         }
     }
 
-    private void chatBackend(String chatID, String password) throws IOException {
+    private void chatBackend(int chatID) throws IOException {
         clientOutput.println(
                 "Entered chat " + chatID
                         + ". Printing latest messages."/*Use \"/previous\" to load earlier messages."*/);
+        clientOutput.println(HandleModes.CHAT_STRING);
         try {
-            Stack<String> messages = DBUtils.readChat(chatID, password);
+            Queue<String> messages = DBUtils.readChat(chatID);
 
-            if (messages.empty()) {
+            if (messages.size() == 0) {
                 clientOutput.println("No messages to display.");
             } else {
-                while (!messages.empty()) {
-                    clientOutput.println(messages.pop());
+                while (messages.size() > 0) {
+                    clientOutput.println(messages.poll());
                 }
             }
 
             String inputLine;
             while ((inputLine = clientInput.readLine()) != null) {
-                clientOutput.println("No further features programmed");
-                System.out.println(inputLine);
+                if (inputLine.length() > 0 && inputLine.charAt(0) != '/') {
+                    DBUtils.sendToChat(chatID, inputLine);
+                }
             }
         } catch (SQLException e) {
             clientOutput.println("Failed to read chat. Exiting chat.");

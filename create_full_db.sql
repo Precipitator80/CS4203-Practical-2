@@ -12,70 +12,30 @@ DROP TABLE IF EXISTS chat;
 /*----------------------------------------------*/
 CREATE TABLE chat (
     id INT AUTO_INCREMENT,
-    chat_name VARCHAR(100),
-    chat_password VARCHAR(64),
+    chat_name VARCHAR(256),
+    rsa_public_key VARCHAR(256),
     PRIMARY KEY (id)
 );
 CREATE TABLE chat_line (
     id INT AUTO_INCREMENT,
     chat_id INT,
-    line_text TEXT,
+    line_text VARCHAR(2048),
     PRIMARY KEY (id),
     FOREIGN KEY (chat_id) REFERENCES chat (id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 /*------------------------------------------------------------------------------------------------*/
 -- Create functions
 /*----------------------------------------------*/
--- Read messages from a chat if authorised.
-/*
- CREATE OR REPLACE FUNCTION func_read_chat(chat_id INT, chat_password VARCHAR(64)) RETURNS TEXT BEGIN
- DECLARE chat_message TEXT;
- CALL proc_read_chat(chat_id, chat_password, chat_message);
- RETURN chat_message;
- END;
- */
-/*----------------------------------------------*/
--- Check whether an ID and password match a chat.
-CREATE OR REPLACE FUNCTION func_valid_chat_credentials(chat_id INT, chat_password VARCHAR(64)) RETURNS BOOLEAN BEGIN RETURN(
-        EXISTS(
-            SELECT *
-            FROM chat
-            WHERE chat_id = chat.id
-                AND chat_password = chat.chat_password
-        )
-    );
-END;
 /*------------------------------------------------------------------------------------------------*/
 -- Create procedures
 /*----------------------------------------------*/
--- Create a new chat.
-CREATE OR REPLACE PROCEDURE proc_create_chat(
-        IN chat_name VARCHAR(100),
-        IN chat_password VARCHAR(64)
-    ) BEGIN
-INSERT INTO chat (chat_name, chat_password)
-VALUES(chat_name, chat_password);
-END;
-/*----------------------------------------------*/
--- Write a new chat line (message).
-CREATE OR REPLACE PROCEDURE proc_create_chat_line(IN chat_id INT, IN line_text TEXT) BEGIN
-INSERT INTO chat_line (chat_id, line_text)
-VALUES(chat_id, line_text);
-END;
-/*----------------------------------------------*/
 -- Only allow reading a chat if the user is authorised.
-CREATE OR REPLACE PROCEDURE proc_read_chat(
-        IN chat_id INT,
-        IN chat_password VARCHAR(64)
-    ) BEGIN IF func_valid_chat_credentials(chat_id, chat_password) THEN
+CREATE OR REPLACE PROCEDURE proc_read_chat(IN chat_id INT) BEGIN
 SELECT line_text
 FROM chat_line
 WHERE chat_id = chat_line.chat_id
 ORDER BY chat_line.chat_id DESC
 LIMIT 10;
-ELSE SIGNAL SQLSTATE '45001'
-SET message_text = "Could not read chat. Error when checking credentials.";
-END IF;
 END;
 /*------------------------------------------------------------------------------------------------*/
 -- Create views
@@ -86,13 +46,38 @@ END;
 /*------------------------------------------------------------------------------------------------*/
 -- Insert values
 /*----------------------------------------------*/
-CALL proc_create_chat(
-    "The first chat!",
-    "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-);
-CALL proc_create_chat_line(1, "This is the first message!");
-CALL proc_create_chat_line(1, "This is the second message!");
-CALL proc_create_chat_line(1, "This is the third message!");
-CALL proc_create_chat_line(1, "This is the fourth message!");
-CALL proc_create_chat_line(1, "This is the fifth message!");
-CALL proc_create_chat_line(1, "This is the sixth message!");
+INSERT INTO chat (chat_name, rsa_public_key)
+VALUES (
+        "The first chat!",
+        "ThisShouldBeThePublicKey"
+    );
+INSERT INTO chat_line (chat_id, line_text)
+VALUES(
+        1,
+        "J8bvFpNReP1sB9vhwN7e2Q65CHEwfMDaaIUXdAr6GKg="
+    );
+INSERT INTO chat_line (chat_id, line_text)
+VALUES(
+        1,
+        "HqrvZALqOj3w71nbtcp3kvJm7sNGvjtXQbaNDMl8Dk0="
+    );
+INSERT INTO chat_line (chat_id, line_text)
+VALUES(
+        1,
+        "gq2/kGAY8NkkBgWOfWcKPQol19Y6GDFuSU6luikN+tA="
+    );
+INSERT INTO chat_line (chat_id, line_text)
+VALUES(
+        1,
+        "8eMEY+AsIaAxD2X0JbiTkzYaN83VLLng4ryLrzEcZhI="
+    );
+INSERT INTO chat_line (chat_id, line_text)
+VALUES(
+        1,
+        "Gz4Z45yX6weio7Ol68pKvk99Qu3CJrp9UGS5yMyIEfU="
+    );
+INSERT INTO chat_line (chat_id, line_text)
+VALUES(
+        1,
+        "clBhG9jsOMxAu1Bzp2+s4099Qu3CJrp9UGS5yMyIEfU="
+    );
