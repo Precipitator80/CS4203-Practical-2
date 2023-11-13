@@ -29,15 +29,15 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 public class KeyUtils {
-    private static final String KEY_FOLDER_STRING = "Chat Keys/";
-    private static final String PUBLIC_KEY_STRING = "-rsa-public-key.pem";
-    private static final String PRIVATE_KEY_STRING = "-rsa-private-key.pem";
-    private static final String AES_KEY_STRING = "-aes-key.pem";
-    private static final String RSA = "RSA";
-    private static final int RSA_SIZE = 2048;
+    public static final String KEY_FOLDER_STRING = "Chat Keys/";
+    public static final String PUBLIC_KEY_STRING = "-rsa-public-key.pem";
+    public static final String PRIVATE_KEY_STRING = "-rsa-public-key.pem";
+    public static final String AES_KEY_STRING = "-aes-key.pem";
+    public static final String RSA = "RSA";
+    public static final int RSA_SIZE = 2048;
     public static final String AES = "AES";
-    private static final int AES_SIZE = 256;
-    private static final Charset CHARSET = StandardCharsets.UTF_8;
+    public static final int AES_SIZE = 256;
+    public static final Charset CHARSET = StandardCharsets.UTF_8;
     // Maximum string length using RSA and UTF_8. 245 bytes / 4 bytes per char (max case) = 61.
 
     // How can I get the maximum byte array length from a string that has always the same length?
@@ -94,7 +94,7 @@ public class KeyUtils {
      * Generates an RSA key pair used for encrypting the AES key.
      * @return The generated RSA key pair.
      */
-    private static KeyPair generateRSAKeyPair() throws NoSuchAlgorithmException {
+    public static KeyPair generateRSAKeyPair() throws NoSuchAlgorithmException {
         KeyPairGenerator generator = KeyPairGenerator.getInstance(RSA);
         generator.initialize(RSA_SIZE);
         return generator.generateKeyPair();
@@ -104,7 +104,7 @@ public class KeyUtils {
      * Generates an AES key used for encrypting the message.
      * @return The generated AES key.
      */
-    private static SecretKey generateAESKey() throws NoSuchAlgorithmException {
+    public static SecretKey generateAESKey() throws NoSuchAlgorithmException {
         KeyGenerator generator = KeyGenerator.getInstance(AES);
         generator.init(AES_SIZE);
         return generator.generateKey();
@@ -135,7 +135,7 @@ public class KeyUtils {
      * @param algorithm The algorithm to use to encrypt the key.
      * @return The encrypted key as a string.
      */
-    private static String encryptKey(Key keyToEncrypt, PublicKey keyForEncryption, String algorithm)
+    public static String encryptKey(Key keyToEncrypt, PublicKey keyForEncryption, String algorithm)
             throws NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, IllegalBlockSizeException,
             BadPaddingException {
         return encryptBytes(keyToEncrypt.getEncoded(), keyForEncryption, algorithm);
@@ -148,7 +148,7 @@ public class KeyUtils {
      * @param algorithm The algorithm to use to encrypt the bytes.
      * @return The encrypted bytes as a string.
      */
-    private static String encryptBytes(byte[] unencryptedBytes, Key key, String algorithm)
+    public static String encryptBytes(byte[] unencryptedBytes, Key key, String algorithm)
             throws NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, IllegalBlockSizeException,
             BadPaddingException {
         Cipher encryptCipher = Cipher.getInstance(algorithm);
@@ -181,7 +181,7 @@ public class KeyUtils {
      * @param algorithm The algorithm to use to decrypt the key.
      * @return The decrypted key.
      */
-    private static SecretKeySpec decryptKey(String encryptedKey, String encryptedKeyAlgorithm,
+    public static SecretKeySpec decryptKey(String encryptedKey, String encryptedKeyAlgorithm,
             PrivateKey keyForDecryption,
             String decryptionAlgorithm)
             throws NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, IllegalBlockSizeException,
@@ -197,7 +197,7 @@ public class KeyUtils {
      * @param algorithm The algorithm to use to decrypt the bytes.
      * @return The decrypted bytes.
      */
-    private static byte[] decryptBytes(String encryptedString, Key key, String algorithm)
+    public static byte[] decryptBytes(String encryptedString, Key key, String algorithm)
             throws NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, IllegalBlockSizeException,
             BadPaddingException {
 
@@ -216,7 +216,7 @@ public class KeyUtils {
      * @param chatID The chat the key pair is for.
      * @param rsaKeyPair The key pair to save.
      */
-    private static void saveRSAKeyPair(int chatID, KeyPair rsaKeyPair) {
+    public static void saveRSAKeyPair(int chatID, KeyPair rsaKeyPair) {
         try (FileOutputStream fos = new FileOutputStream(KEY_FOLDER_STRING + chatID + PUBLIC_KEY_STRING)) {
             fos.write(rsaKeyPair.getPublic().getEncoded());
         } catch (IOException e) {
@@ -234,7 +234,7 @@ public class KeyUtils {
      * @param chatID The chat the key is for.
      * @param aesKey The key to save.
      */
-    private static void saveAESKey(int chatID, SecretKey aesKey) {
+    public static void saveAESKey(int chatID, SecretKey aesKey) {
         try (FileOutputStream fos = new FileOutputStream(KEY_FOLDER_STRING + chatID + AES_KEY_STRING)) {
             fos.write(aesKey.getEncoded());
         } catch (IOException e) {
@@ -249,25 +249,31 @@ public class KeyUtils {
      * @throws InvalidKeySpecException If the key file does not match the key specification.
      * @throws IOException If the file containing the key could not be found or read properly.
      */
-    private static PublicKey readRSAPublicKey(int chatID)
+    public static PublicKey readRSAPublicKey(int chatID)
+            throws NoSuchAlgorithmException, InvalidKeySpecException, IOException {
+        byte[] bytes = readKeyBytes(chatID + PUBLIC_KEY_STRING);
+        return readRSAPublicKey(bytes);
+    }
+
+    public static PublicKey readRSAPublicKey(byte[] bytes)
             throws NoSuchAlgorithmException, InvalidKeySpecException, IOException {
         KeyFactory keyFactory = KeyFactory.getInstance(RSA);
-        X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(readKeyBytes(chatID + PUBLIC_KEY_STRING));
+        X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(bytes);
         return keyFactory.generatePublic(publicKeySpec);
     }
 
     /**
-     * Reads the private key for a given chat.
+     * Reads the public key for a given chat.
      * @param chatID The chat the key is for.
-     * @return The private key for the chat.
+     * @return The public key for the chat.
      * @throws InvalidKeySpecException If the key file does not match the key specification.
      * @throws IOException If the file containing the key could not be found or read properly.
      */
-    private static PrivateKey readRSAPrivateKey(int chatID)
+    public static PrivateKey readRSAPrivateKey(int chatID)
             throws NoSuchAlgorithmException, InvalidKeySpecException, IOException {
         KeyFactory keyFactory = KeyFactory.getInstance(RSA);
-        PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(readKeyBytes(chatID + PRIVATE_KEY_STRING));
-        return keyFactory.generatePrivate(privateKeySpec);
+        PKCS8EncodedKeySpec publicKeySpec = new PKCS8EncodedKeySpec(readKeyBytes(chatID + PRIVATE_KEY_STRING));
+        return keyFactory.generatePrivate(publicKeySpec);
     }
 
     /**
@@ -286,7 +292,7 @@ public class KeyUtils {
      * @return The bytes of the key.
      * @throws IOException If the file could not be found or read properly.
      */
-    private static byte[] readKeyBytes(String fileName) throws IOException {
+    public static byte[] readKeyBytes(String fileName) throws IOException {
         File keyFile = new File(KEY_FOLDER_STRING + fileName);
         return Files.readAllBytes(keyFile.toPath());
     }

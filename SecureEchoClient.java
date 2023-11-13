@@ -3,7 +3,9 @@
 
 import java.io.*;
 import java.net.*;
+import java.security.PrivateKey;
 
+import javax.crypto.SecretKey;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
@@ -16,6 +18,10 @@ public class SecureEchoClient extends AbstractEchoClient {
 
     boolean shuttingDown;
     HandleModes.Enum handleMode = HandleModes.Enum.CHAT_SELECT;
+    int chatID;
+    PrivateKey chatAuthKey;
+    SecretKey chatEncryptionKey;
+    String challenge;
 
     @Override
     public void start() {
@@ -35,7 +41,7 @@ public class SecureEchoClient extends AbstractEchoClient {
                 // Use a buffered reader to let the user send messages through the client.
                 BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in))) {
             socket.startHandshake();
-            System.out.println("Connected to Echo Server. Type 'exit' to quit.");
+            System.out.println("Connected to Echo Server. Type '/exit' to quit.");
 
             // Wait for any messages from the server.
             listenForMessages(socket, serverInput);
@@ -54,19 +60,33 @@ public class SecureEchoClient extends AbstractEchoClient {
 
     public void sendMessages(SSLSocket socket, PrintWriter serverOutput, BufferedReader userInput) throws IOException {
         String userInputLine;
-        while (socket.isConnected()) {
+        while (!socket.isClosed()) {
             if ((userInputLine = userInput.readLine()) != null) {
                 switch (handleMode) {
                     case CHALLENGE_RESPONSE:
-
+                        try {
+                            chatAuthKey = KeyUtils.readRSAPrivateKey(chatID);
+                            if (challenge != null) {
+                                String encryptedChallenge = KeyUtils.encryptString(challenge, chatAuthKey,
+                                        KeyUtils.RSA);
+                                serverOutput.println(encryptedChallenge);
+                                System.out.println("Sent challenge response to server");
+                                challenge = null;
+                            } else {
+                                System.out.println("Failed to read challenge from server.");
+                                serverOutput.println("Failed to read challenge from server.");
+                            }
+                        } catch (Exception e) {
+                            System.out.println(e.toString());
+                            serverOutput.println("Failed to do challenge.");
+                        }
                         break;
                     case CHAT:
                         // Check whether the user wants to quit first.
-                        if ("exit".equalsIgnoreCase(userInputLine)) {
-                            shuttingDown = true;
-                            System.out.println("Closing socket and shutting down client.");
-                            socket.close();
-                            return;
+                        if ("/exit".equalsIgnoreCase(userInputLine)) {
+                            serverOutput.println(userInputLine);
+                            handleMode = HandleModes.Enum.CHAT_SELECT;
+                            break;
                         }
 
                         // If the user does not want to quit, encrypt their chat message and send it to the server.
@@ -78,15 +98,31 @@ public class SecureEchoClient extends AbstractEchoClient {
                             System.out.println("Failed to encrypt message.");
                         }
                         break;
+                    case CHAT_SELECT:
+                        if ("/exit".equalsIgnoreCase(userInputLine)) {
+                            shuttingDown = true;
+                            System.out.println("Closing socket and shutting down client.");
+                            socket.close();
+                            return;
+                        }
+                        try {
+                            chatID = Integer.parseInt(userInputLine);
+                            serverOutput.println(chatID);
+                        } catch (NumberFormatException e) {
+                            System.out
+                                    .println("Failed to read \"" + userInputLine + "\". Please enter a valid integer.");
+                        }
+                        break;
                     default:
-                        // Send user input to the server, ensuring that the handle mode has not switched out of unencrypted mode.
-                        serverOutput.println(userInputLine);
                         if ("exit".equalsIgnoreCase(userInputLine)) {
                             shuttingDown = true;
                             System.out.println("Closing socket and shutting down client.");
                             socket.close();
                             return;
                         }
+
+                        // Send user input to the server.
+                        serverOutput.println(userInputLine);
                         break;
                 }
             }
@@ -99,7 +135,7 @@ public class SecureEchoClient extends AbstractEchoClient {
             @Override
             public void run() {
                 try {
-                    while (socket.isConnected()) {
+                    while (!socket.isClosed()) {
                         // Get any messages from the server and print them.
                         String serverResponse;
                         if ((serverResponse = serverInput.readLine()) != null) {
@@ -117,6 +153,9 @@ public class SecureEchoClient extends AbstractEchoClient {
                                         } catch (Exception e) {
                                             System.out.println("Server response    (direct): " + serverResponse);
                                         }
+                                        break;
+                                    case CHALLENGE_RESPONSE:
+                                        challenge = serverResponse;
                                         break;
                                     default:
                                         System.out.println("Server response: " + serverResponse);

@@ -13,7 +13,7 @@ DROP TABLE IF EXISTS chat;
 CREATE TABLE chat (
     id INT AUTO_INCREMENT,
     chat_name VARCHAR(256),
-    rsa_public_key VARCHAR(256),
+    rsa_public_key VARBINARY(32),
     PRIMARY KEY (id)
 );
 CREATE TABLE chat_line (

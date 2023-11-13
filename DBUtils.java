@@ -1,3 +1,10 @@
+import java.io.IOException;
+import java.security.Key;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -119,6 +126,22 @@ public class DBUtils {
         PreparedStatement ps = connection.prepareStatement("INSERT INTO chat_line (chat_id, line_text) VALUES (?,?)");
         ps.setInt(1, chat_id);
         ps.setString(2, chat_line);
+        return ps;
+    }
+
+    public static PublicKey readChatKey(int id)
+            throws SQLException, NoSuchAlgorithmException, InvalidKeySpecException, IOException {
+        try (Connection connection = openConnection();
+                PreparedStatement ps = readChatKeyPS(connection, id);
+                ResultSet resultSet = ps.executeQuery()) {
+            return KeyUtils.readRSAPublicKey(resultSet.getBytes(1));
+        }
+    }
+
+    private static PreparedStatement readChatKeyPS(Connection connection, int id)
+            throws SQLException {
+        PreparedStatement ps = connection.prepareStatement("SELECT rsa_public_key FROM chat WHERE id = ?");
+        ps.setInt(1, id);
         return ps;
     }
 }
