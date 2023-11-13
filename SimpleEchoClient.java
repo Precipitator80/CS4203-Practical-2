@@ -36,8 +36,8 @@ public class SimpleEchoClient extends AbstractEchoClient {
                 String serverResponse = in.readLine();
                 System.out.println("Server response: " + serverResponse);
 
-                // Let the user exit when typing "exit".
-                if ("exit".equalsIgnoreCase(userInputLine)) {
+                // Let the user exit when typing "/exit".
+                if (HandleModes.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
                     break;
                 }
             }

@@ -37,6 +37,17 @@ WHERE chat_id = chat_line.chat_id
 ORDER BY chat_line.chat_id DESC
 LIMIT 10;
 END;
+/*----------------------------------------------*/
+-- Procedure to create a new chat, returning the ID.
+CREATE OR REPLACE PROCEDURE proc_create_chat(
+        IN chat_name VARCHAR(256),
+        IN rsa_public_key VARBINARY(32),
+        OUT id INT
+    ) BEGIN
+INSERT INTO chat (chat_name, rsa_public_key)
+VALUES (chat_name, rsa_public_key);
+SELECT LAST_INSERT_ID() INTO id;
+END;
 /*------------------------------------------------------------------------------------------------*/
 -- Create views
 /*----------------------------------------------*/

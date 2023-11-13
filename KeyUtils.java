@@ -80,6 +80,7 @@ public class KeyUtils {
             System.out.println("Encrypted String:\n" + encryptedString);
             System.out.println("Decrypted String:\n" + decryptedString);
             System.out.println("Encrypted Key:\n" + encryptedKey);
+            System.out.println("Decrypted Key:\n" + decryptedKey);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -217,13 +218,21 @@ public class KeyUtils {
      * @param rsaKeyPair The key pair to save.
      */
     public static void saveRSAKeyPair(int chatID, KeyPair rsaKeyPair) {
+        saveRSAPublicKey(chatID, rsaKeyPair.getPublic());
+        saveRSAPrivateKey(chatID, rsaKeyPair.getPrivate());
+    }
+
+    public static void saveRSAPublicKey(int chatID, PublicKey publicKey) {
         try (FileOutputStream fos = new FileOutputStream(KEY_FOLDER_STRING + chatID + PUBLIC_KEY_STRING)) {
-            fos.write(rsaKeyPair.getPublic().getEncoded());
+            fos.write(publicKey.getEncoded());
         } catch (IOException e) {
             System.out.println(e.toString());
         }
+    }
+
+    public static void saveRSAPrivateKey(int chatID, PrivateKey privateKey) {
         try (FileOutputStream fos = new FileOutputStream(KEY_FOLDER_STRING + chatID + PRIVATE_KEY_STRING)) {
-            fos.write(rsaKeyPair.getPrivate().getEncoded());
+            fos.write(privateKey.getEncoded());
         } catch (IOException e) {
             System.out.println(e.toString());
         }

@@ -1,16 +1,15 @@
 import java.io.IOException;
-import java.security.Key;
-import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
-import java.security.spec.X509EncodedKeySpec;
+import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.LinkedList;
 import java.util.Queue;
 
@@ -32,7 +31,6 @@ public class DBUtils {
     /**
      * Standard method to open a connection to the database.
      * @return A connection to the database.
-     * @throws SQLException
      */
     public static Connection openConnection() throws SQLException {
         return DriverManager.getConnection(DB_URL, USER, PASSWORD);
@@ -70,7 +68,6 @@ public class DBUtils {
      * @param id The ID of the chat to enter.
      * @param password The password of the chat.
      * @return Whether the login details are valid.
-     * @throws SQLException
      */
     public static boolean validChatCredentials(int id, String password) throws SQLException {
         try (Connection connection = openConnection();
@@ -93,7 +90,6 @@ public class DBUtils {
      * @param id The ID of the chat to enter.
      * @param password The password of the chat.
      * @return Messages from the chat.
-     * @throws SQLException
      */
     public static Queue<String> readChat(int id) throws SQLException {
         try (Connection connection = openConnection();
@@ -143,5 +139,30 @@ public class DBUtils {
         PreparedStatement ps = connection.prepareStatement("SELECT rsa_public_key FROM chat WHERE id = ?");
         ps.setInt(1, id);
         return ps;
+    }
+
+    /**
+    * Creates a new chat.
+    * How to call a stored procedure that returns output parameters, using JDBC program? - Jennifer Nicholas - https://www.tutorialspoint.com/how-to-call-a-stored-procedure-that-returns-output-parameters-using-jdbc-program - Accessed 06.04.2023
+    * @param chat_name The encrypted name of the chat.
+    * @param rsa_public_key The public key for the chat.
+    * @return The ID of the new chat.
+    */
+    public static int createChat(String chat_name, byte[] rsa_public_key)
+            throws SQLException {
+        try (Connection connection = openConnection();
+                CallableStatement cs = createChatPS(connection, chat_name, rsa_public_key);) {
+            cs.executeUpdate();
+            return cs.getInt(3);
+        }
+    }
+
+    private static CallableStatement createChatPS(Connection connection, String chat_name, byte[] rsa_public_key)
+            throws SQLException {
+        CallableStatement cs = connection.prepareCall("CALL proc_add_person(?,?,?,?,?)");
+        cs.setString(1, chat_name);
+        cs.setBytes(2, rsa_public_key);
+        cs.registerOutParameter(3, Types.INTEGER);
+        return cs;
     }
 }

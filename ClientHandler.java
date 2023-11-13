@@ -42,51 +42,75 @@ public class ClientHandler implements Runnable {
     private void chatSelect()
             throws IOException {
         int chatID;
-
-        clientOutput.println("Please select a chat number."/*or type \"create\" to start creating a new chat."*/);
+        clientOutput.println(HandleModes.CHAT_SELECT_SIGNAL);
+        clientOutput.println("Please select a chat number or type \"create\" to start creating a new chat.");
         while (!clientSocket.isClosed()) {
             // Ask for a chat.
             String userInputLine = clientInput.readLine();
-            try {
-                chatID = Integer.parseInt(userInputLine);
-
-                // Confirm choice and ask for a password.
-                clientOutput.println("You have selected " + chatID + ". Checking key.");
-                clientOutput.println(HandleModes.CHALLENGE_RESPONSE_STRING);
-
-                // Send a challenge to the client.
-                String challenge = "This is your challenge!";
-                clientOutput.println(challenge);
-                String encryptedResponse = clientInput.readLine();
-
+            if (userInputLine.equals(HandleModes.CHAT_CREATION_COMMAND)) {
+                chatCreation();
+            } else {
                 try {
-                    PublicKey publicKey = DBUtils.readChatKey(chatID);
-                    String decryptedResponse = KeyUtils.decryptString(encryptedResponse, publicKey, KeyUtils.RSA);
+                    chatID = Integer.parseInt(userInputLine);
 
-                    if (challenge.equals(decryptedResponse)) {
-                        // Enter a server chat room.
-                        chatBackend(chatID);
+                    // Confirm choice and ask for a password.
+                    clientOutput.println("You have selected " + chatID + ". Checking key.");
+                    clientOutput.println(HandleModes.CHALLENGE_RESPONSE_SIGNAL);
 
-                        // Once the chat room has been exited, repeat the chat selection.
-                        clientOutput
-                                .println("Exited chat. Please select another chat number or type /exit to disconnect.");
-                    } else {
-                        clientOutput.println("Invalid credentials. Please select a chat number.");
+                    // Send a challenge to the client.
+                    String challenge = "This is your challenge!";
+                    clientOutput.println(challenge);
+                    String encryptedResponse = clientInput.readLine();
+
+                    try {
+                        PublicKey publicKey = DBUtils.readChatKey(chatID);
+                        String decryptedResponse = KeyUtils.decryptString(encryptedResponse, publicKey, KeyUtils.RSA);
+
+                        if (challenge.equals(decryptedResponse)) {
+                            // Enter a server chat room.
+                            chatBackend(chatID);
+                        } else {
+                            clientOutput.println("Invalid credentials. Please select a chat number.");
+                        }
+                    } catch (Exception e) {
+                        clientOutput.println("Failed to check credentials against database. " + e.toString());
                     }
-                } catch (Exception e) {
-                    clientOutput.println("Failed to check credentials against database. " + e.toString());
+                } catch (NumberFormatException e) {
+                    clientOutput.println("Failed to read \"" + userInputLine + "\". Please enter a valid integer.");
                 }
-            } catch (NumberFormatException e) {
-                clientOutput.println("Failed to read \"" + userInputLine + "\". Please enter a valid integer.");
             }
         }
+    }
+
+    private void chatCreation() throws IOException {
+        clientOutput.println(HandleModes.CHAT_CREATION_SIGNAL);
+        clientOutput.println(
+                "Please write a name for your chat. Alternatively, type " + HandleModes.EXIT_COMMAND
+                        + " to cancel chat creation.");
+
+        String userInputLine = clientInput.readLine();
+        if (userInputLine.equals(HandleModes.EXIT_COMMAND)) {
+            clientOutput.println(HandleModes.CHAT_SELECT_SIGNAL);
+            return;
+        }
+
+        String chat_name = userInputLine;
+        byte[] rsa_public_key = clientInput.readLine().getBytes();
+        try {
+            int chatID = DBUtils.createChat(chat_name, rsa_public_key);
+            chatBackend(chatID);
+        } catch (SQLException e) {
+            System.out.println("Failed to create chat!");
+            clientOutput.println("Failed to create chat! Returning to chat selection.");
+        }
+        clientOutput.println(HandleModes.CHAT_SELECT_SIGNAL);
     }
 
     private void chatBackend(int chatID) throws IOException {
         clientOutput.println(
                 "Entered chat " + chatID
                         + ". Printing latest messages."/*Use \"/previous\" to load earlier messages."*/);
-        clientOutput.println(HandleModes.CHAT_STRING);
+        clientOutput.println(HandleModes.CHAT_SIGNAL);
         try {
             Queue<String> messages = DBUtils.readChat(chatID);
 
@@ -104,7 +128,7 @@ public class ClientHandler implements Runnable {
                     if (inputLine.charAt(0) != '/') {
                         DBUtils.sendToChat(chatID, inputLine);
                     } else {
-                        if (inputLine.equals("/exit")) {
+                        if (inputLine.equals(HandleModes.EXIT_COMMAND)) {
                             break;
                         }
                     }
@@ -114,6 +138,12 @@ public class ClientHandler implements Runnable {
             clientOutput.println("Failed to read chat. Exiting chat.");
             clientOutput.println(e.toString());
         }
+
+        // Once the chat room has been exited, repeat the chat selection.
+        clientOutput.println(HandleModes.CHAT_SELECT_SIGNAL);
+        clientOutput
+                .println(
+                        "Exited chat. Please select another chat number or type /exit to disconnect.");
     }
 
     private void closeEverything() {
