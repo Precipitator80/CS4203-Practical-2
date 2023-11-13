@@ -13,7 +13,7 @@ DROP TABLE IF EXISTS chat;
 CREATE TABLE chat (
     id INT AUTO_INCREMENT,
     chat_name VARCHAR(256),
-    rsa_public_key VARBINARY(32),
+    rsa_public_key VARBINARY(294),
     PRIMARY KEY (id)
 );
 CREATE TABLE chat_line (
@@ -41,7 +41,7 @@ END;
 -- Procedure to create a new chat, returning the ID.
 CREATE OR REPLACE PROCEDURE proc_create_chat(
         IN chat_name VARCHAR(256),
-        IN rsa_public_key VARBINARY(32),
+        IN rsa_public_key VARBINARY(294),
         OUT id INT
     ) BEGIN
 INSERT INTO chat (chat_name, rsa_public_key)

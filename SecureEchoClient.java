@@ -6,6 +6,7 @@ import java.net.*;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.Base64;
 
 import javax.crypto.SecretKey;
 import javax.net.ssl.SSLSocket;
@@ -47,10 +48,10 @@ public class SecureEchoClient extends AbstractEchoClient {
             System.out.println("Connected to Echo Server. Type '/exit' to quit.");
 
             // Wait for any messages from the server.
-            listenForMessages(socket, serverInput);
+            listener(socket, serverInput);
 
             // Wait for any input from the user to send to the server.
-            sendMessages(socket, serverOutput, userInput);
+            sender(socket, serverOutput, userInput);
         } catch (UnknownHostException e) {
             System.err.println("Don't know about host " + hostAddress);
             System.exit(1);
@@ -61,127 +62,175 @@ public class SecureEchoClient extends AbstractEchoClient {
         }
     }
 
-    public void sendMessages(SSLSocket socket, PrintWriter serverOutput, BufferedReader userInput) throws IOException {
-        String userInputLine;
+    public void sender(SSLSocket socket, PrintWriter serverOutput, BufferedReader userInput) throws IOException {
         while (!socket.isClosed()) {
-            if ((userInputLine = userInput.readLine()) != null) {
-                switch (handleMode) {
-                    case CHALLENGE_RESPONSE:
-                        challengeResponseOutput(serverOutput);
-                        break;
-                    case CHAT:
-                        chatHandler(userInputLine, serverOutput);
-                        break;
-                    case CHAT_CREATION:
-                        chatCreator(userInputLine, serverOutput);
-                        break;
-                    case CHAT_SELECT:
-                        chatSelect(userInputLine, serverOutput, socket);
-                        break;
-                    default:
-                        if (HandleModes.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
-                            shuttingDown = true;
-                            System.out.println("Closing socket and shutting down client.");
-                            socket.close();
-                            return;
-                        }
+            switch (handleMode) {
+                case CHALLENGE_RESPONSE:
+                    challengeResponse(serverOutput);
+                    break;
+                case CHAT:
+                    chat(serverOutput, userInput);
+                    break;
+                case CHAT_CREATION:
+                    chatCreation(serverOutput, userInput);
+                    break;
+                case CHAT_SELECT:
+                    chatSelect(socket, serverOutput, userInput);
+                    break;
+                default:
+                    directMode(socket, serverOutput, userInput);
+                    break;
+            }
+        }
+    }
 
-                        // Send user input to the server.
-                        serverOutput.println(userInputLine);
-                        break;
+    private void challengeResponse(PrintWriter serverOutput) {
+        boolean attemptedChallenge = false;
+        System.out.println("Entered challenge response mode.");
+        while (handleMode == HandleModes.CHALLENGE_RESPONSE) {
+            System.out.println(handleMode);
+            if (!attemptedChallenge) {
+                try {
+                    if (challenge != null) {
+                        System.out.println("Encrypting challenge.");
+                        chatPrivateKey = KeyUtils.readRSAPrivateKey(chatID);
+                        String encryptedChallenge = KeyUtils.encryptString(challenge, chatPrivateKey,
+                                KeyUtils.RSA);
+                        serverOutput.println(encryptedChallenge);
+                        System.out.println("Sent challenge response to server.");
+                        challenge = null;
+                        attemptedChallenge = true;
+                    }
+                } catch (Exception e) {
+                    System.out.println(e.toString());
+                    serverOutput.println("Failed to do challenge.");
+                    attemptedChallenge = true;
                 }
             }
         }
+        System.out.println("Quit challenge response mode.");
     }
 
-    private void challengeResponseOutput(PrintWriter serverOutput) {
-        try {
-            chatPrivateKey = KeyUtils.readRSAPrivateKey(chatID);
-            if (challenge != null) {
-                String encryptedChallenge = KeyUtils.encryptString(challenge, chatPrivateKey,
-                        KeyUtils.RSA);
-                serverOutput.println(encryptedChallenge);
-                System.out.println("Sent challenge response to server");
-                challenge = null;
-            } else {
-                System.out.println("Failed to read challenge from server.");
-                serverOutput.println("Failed to read challenge from server.");
+    private void chat(PrintWriter serverOutput, BufferedReader userInput) throws IOException {
+        System.out.println("Entered chat mode.");
+        chatSymmetricKey = KeyUtils.readAESKey(chatID);
+        while (handleMode == HandleModes.CHAT) {
+            String userInputLine;
+            if ((userInputLine = userInput.readLine()) != null) {
+                // Check whether the user wants to quit first.
+                if (HandleModes.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
+                    serverOutput.println(userInputLine);
+                    handleMode = HandleModes.CHAT_SELECT;
+                    break;
+                }
+
+                // If the user does not want to quit, encrypt their chat message and send it to the server.
+                try {
+                    String encryptedString = KeyUtils.encryptString(userInputLine, chatSymmetricKey,
+                            KeyUtils.AES);
+                    serverOutput.println(encryptedString);
+                } catch (Exception e) {
+                    System.out.println("Failed to encrypt message. " + e.toString());
+                }
             }
-        } catch (Exception e) {
-            System.out.println(e.toString());
-            serverOutput.println("Failed to do challenge.");
         }
+        System.out.println("Quit chat mode.");
     }
 
-    private void chatHandler(String userInputLine, PrintWriter serverOutput) {
-        // Check whether the user wants to quit first.
-        if (HandleModes.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
-            serverOutput.println(userInputLine);
-            handleMode = HandleModes.CHAT_SELECT;
-            return;
-        }
+    private void chatCreation(PrintWriter serverOutput, BufferedReader userInput) throws IOException {
+        System.out.println("Entered chat creation mode.");
+        boolean sentChatInfo = false;
+        while (handleMode == HandleModes.CHAT_CREATION) {
+            if (!sentChatInfo) {
+                String userInputLine;
+                if ((userInputLine = userInput.readLine()) != null) {
+                    // Check whether the user wants to quit first.
+                    if (HandleModes.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
+                        serverOutput.println(userInputLine);
+                        handleMode = HandleModes.CHAT_SELECT;
+                        return;
+                    }
 
-        // If the user does not want to quit, encrypt their chat message and send it to the server.
-        try {
-            String encryptedString = KeyUtils.encryptString(userInputLine, chatSymmetricKey,
-                    KeyUtils.AES);
-            serverOutput.println(encryptedString);
-        } catch (Exception e) {
-            System.out.println("Failed to encrypt message.");
+                    // If the user does not want to quit, create keys for the new chat.
+                    try {
+                        KeyPair rsaKeyPair = KeyUtils.generateRSAKeyPair();
+                        chatPublicKey = rsaKeyPair.getPublic();
+                        chatPrivateKey = rsaKeyPair.getPrivate();
+                        chatSymmetricKey = KeyUtils.generateAESKey();
+                    } catch (Exception e) {
+                        System.out.println("Failed to generate keys for new chat.");
+                    }
+
+                    // Encrypt the chat name and send it to the server.
+                    try {
+                        String encryptedChatName = KeyUtils.encryptString(userInputLine, chatSymmetricKey,
+                                KeyUtils.AES);
+                        serverOutput.println(encryptedChatName);
+                    } catch (Exception e) {
+                        System.out.println("Failed to encrypt message.");
+                    }
+
+                    // Send the public key to the server.
+                    String chatPublicKeyString = Base64.getEncoder().encodeToString(chatPublicKey.getEncoded());
+                    System.out.println("Sending public key bytes: " + chatPublicKeyString);
+                    serverOutput.println(chatPublicKeyString);
+                    sentChatInfo = true;
+                    System.out.println("Generated keys successfully.");
+                }
+            }
         }
+        System.out.println("Quit chat creation mode.");
     }
 
-    private void chatCreator(String userInputLine, PrintWriter serverOutput) {
-        // Check whether the user wants to quit first.
-        if (HandleModes.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
-            serverOutput.println(userInputLine);
-            handleMode = HandleModes.CHAT_SELECT;
-            return;
+    private void chatSelect(SSLSocket socket, PrintWriter serverOutput, BufferedReader userInput) throws IOException {
+        String userInputLine;
+        System.out.println("Entered chat select mode.");
+        while (handleMode == HandleModes.CHAT_SELECT) {
+            if ((userInputLine = userInput.readLine()) != null) {
+                // Check whether the user wants to quit first.
+                if (HandleModes.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
+                    shuttingDown = true;
+                    System.out.println("Closing socket and shutting down client.");
+                    socket.close();
+                    return;
+                } else if (userInputLine.equals(HandleModes.CHAT_CREATION_COMMAND)) {
+                    // Check whether the user wants to switch to chat creation mode.
+                    serverOutput.println(userInputLine);
+                    handleMode = HandleModes.CHAT_CREATION;
+                } else {
+                    // If the user does not want to quit, send chat ID.
+                    try {
+                        chatID = Integer.parseInt(userInputLine);
+                        serverOutput.println(chatID);
+                        handleMode = HandleModes.CHALLENGE_RESPONSE;
+                    } catch (NumberFormatException e) {
+                        System.out
+                                .println("Failed to read \"" + userInputLine + "\". Please enter a valid integer.");
+                    }
+                }
+            }
         }
-
-        // If the user does not want to quit, encrypt the chat name and send it to the server.
-        try {
-            String encryptedChatName = KeyUtils.encryptString(userInputLine, chatSymmetricKey,
-                    KeyUtils.AES);
-            serverOutput.println(encryptedChatName);
-        } catch (Exception e) {
-            System.out.println("Failed to encrypt message.");
-        }
-
-        try {
-            KeyPair rsaKeyPair = KeyUtils.generateRSAKeyPair();
-            chatPublicKey = rsaKeyPair.getPublic();
-            chatPrivateKey = rsaKeyPair.getPrivate();
-            chatSymmetricKey = KeyUtils.generateAESKey();
-            serverOutput.println(chatPublicKey.getEncoded());
-        } catch (Exception e) {
-            System.out.println("Failed to generate keys for new chat.");
-        }
-
-        System.out.println("Generated keys successfully.");
-
+        System.out.println("Quit chat select mode.");
     }
 
-    private void chatSelect(String userInputLine, PrintWriter serverOutput, SSLSocket socket) throws IOException {
-        if (HandleModes.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
-            shuttingDown = true;
-            System.out.println("Closing socket and shutting down client.");
-            socket.close();
-            return;
-        } else if (userInputLine.equals(HandleModes.CHAT_CREATION_COMMAND)) {
+    private void directMode(SSLSocket socket, PrintWriter serverOutput, BufferedReader userInput) throws IOException {
+        String userInputLine;
+        if ((userInputLine = userInput.readLine()) != null) {
+            // Check whether the user wants to quit first.
+            if (HandleModes.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
+                shuttingDown = true;
+                System.out.println("Closing socket and shutting down client.");
+                socket.close();
+                return;
+            }
+
+            // If the user does not want to quit, send the unencrypted chat selection message.
             serverOutput.println(userInputLine);
-        }
-        try {
-            chatID = Integer.parseInt(userInputLine);
-            serverOutput.println(chatID);
-        } catch (NumberFormatException e) {
-            System.out
-                    .println("Failed to read \"" + userInputLine + "\". Please enter a valid integer.");
         }
     }
 
     // Java Socket Programming - Multiple Clients Chat - WittCode - https://youtu.be/gLfuZrrfKes - Accessed 11.11.2023
-    public void listenForMessages(SSLSocket socket, BufferedReader serverInput) {
+    public void listener(SSLSocket socket, BufferedReader serverInput) {
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -191,30 +240,41 @@ public class SecureEchoClient extends AbstractEchoClient {
                         String serverResponse;
                         if ((serverResponse = serverInput.readLine()) != null) {
                             if (!shuttingDown) {
-                                checkHandleMode(serverResponse);
-                                switch (handleMode) {
-                                    case CHAT:
-                                        try {
-                                            // Decrypt the message before displaying it.
-                                            String decryptedString = KeyUtils.decryptString(serverResponse,
-                                                    chatSymmetricKey,
-                                                    KeyUtils.AES);
-                                            System.out.println("Server response (decrypted): " + decryptedString);
-                                        } catch (Exception e) {
-                                            System.out.println("Server response    (direct): " + serverResponse);
-                                        }
-                                        break;
-                                    case CHALLENGE_RESPONSE:
-                                        challenge = serverResponse;
-                                        break;
-                                    case CHAT_CREATION:
-                                        KeyUtils.saveRSAPrivateKey(chatID, chatPrivateKey);
-                                        KeyUtils.saveRSAPublicKey(chatID, chatPublicKey);
-                                        KeyUtils.saveAESKey(chatID, chatSymmetricKey);
-                                        break;
-                                    default:
-                                        System.out.println("Server response: " + serverResponse);
-                                        break;
+                                boolean changedMode = checkHandleMode(serverResponse);
+                                if (!changedMode) {
+                                    switch (handleMode) {
+                                        case CHAT:
+                                            try {
+                                                // Decrypt the message before displaying it.
+                                                String decryptedString = KeyUtils.decryptString(serverResponse,
+                                                        chatSymmetricKey,
+                                                        KeyUtils.AES);
+                                                System.out.println("Server response (decrypted): " + decryptedString);
+                                            } catch (Exception e) {
+                                                System.out.println("Server response    (direct): " + serverResponse);
+                                            }
+                                            break;
+                                        case CHALLENGE_RESPONSE:
+                                            System.out.println("Received challenge: " + serverResponse);
+                                            challenge = serverResponse;
+                                            break;
+                                        case CHAT_CREATION:
+                                            try {
+                                                chatID = Integer.parseInt(serverResponse);
+                                                System.out.println("Got new chat ID: " + chatID);
+
+                                                // Wait for the new chat to be created on the database before saving the keys.
+                                                KeyUtils.saveRSAPrivateKey(chatID, chatPrivateKey);
+                                                KeyUtils.saveRSAPublicKey(chatID, chatPublicKey);
+                                                KeyUtils.saveAESKey(chatID, chatSymmetricKey);
+                                            } catch (NumberFormatException e) {
+                                                System.out.println("Server response: " + serverResponse);
+                                            }
+                                            break;
+                                        default:
+                                            System.out.println("Server response: " + serverResponse);
+                                            break;
+                                    }
                                 }
                             }
                         }
@@ -229,24 +289,13 @@ public class SecureEchoClient extends AbstractEchoClient {
         }).start();
     }
 
-    private void checkHandleMode(String serverResponse) {
-        if (serverResponse.equals(HandleModes.CHAT_SELECT_SIGNAL)) {
-            handleMode = HandleModes.CHAT_SELECT;
-            System.out.println("SWITCHED HANDLE MODE: " + handleMode);
-        } else if (serverResponse.equals(HandleModes.CHALLENGE_RESPONSE_SIGNAL)) {
-            handleMode = HandleModes.CHALLENGE_RESPONSE;
-            System.out.println("SWITCHED HANDLE MODE: " + handleMode);
-        } else if (serverResponse.equals(HandleModes.CHAT_SIGNAL)) {
-            handleMode = HandleModes.CHAT;
-            System.out.println("SWITCHED HANDLE MODE: " + handleMode);
-            try {
-                chatSymmetricKey = KeyUtils.readAESKey(chatID);
-            } catch (Exception e) {
-                System.out.println("Failed to switch to chat mode. Could not find the matching keys.");
-            }
-        } else if (serverResponse.equals(HandleModes.CHAT_CREATION_SIGNAL)) {
-            handleMode = HandleModes.CHAT_CREATION;
-            System.out.println("SWITCHED HANDLE MODE: " + handleMode);
+    private boolean checkHandleMode(String serverResponse) {
+        HandleModes newHandleMode = HandleModes.stringToHandleMode(serverResponse);
+        if (newHandleMode != null) {
+            handleMode = newHandleMode;
+            System.out.println("Switched handle mode: " + handleMode);
+            return true;
         }
+        return false;
     }
 }

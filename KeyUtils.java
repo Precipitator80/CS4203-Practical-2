@@ -31,7 +31,7 @@ import javax.crypto.spec.SecretKeySpec;
 public class KeyUtils {
     public static final String KEY_FOLDER_STRING = "Chat Keys/";
     public static final String PUBLIC_KEY_STRING = "-rsa-public-key.pem";
-    public static final String PRIVATE_KEY_STRING = "-rsa-public-key.pem";
+    public static final String PRIVATE_KEY_STRING = "-rsa-private-key.pem";
     public static final String AES_KEY_STRING = "-aes-key.pem";
     public static final String RSA = "RSA";
     public static final int RSA_SIZE = 2048;
@@ -225,6 +225,7 @@ public class KeyUtils {
     public static void saveRSAPublicKey(int chatID, PublicKey publicKey) {
         try (FileOutputStream fos = new FileOutputStream(KEY_FOLDER_STRING + chatID + PUBLIC_KEY_STRING)) {
             fos.write(publicKey.getEncoded());
+            System.out.println("Saved public key successfully.");
         } catch (IOException e) {
             System.out.println(e.toString());
         }
@@ -233,6 +234,7 @@ public class KeyUtils {
     public static void saveRSAPrivateKey(int chatID, PrivateKey privateKey) {
         try (FileOutputStream fos = new FileOutputStream(KEY_FOLDER_STRING + chatID + PRIVATE_KEY_STRING)) {
             fos.write(privateKey.getEncoded());
+            System.out.println("Saved private key successfully.");
         } catch (IOException e) {
             System.out.println(e.toString());
         }
@@ -246,6 +248,7 @@ public class KeyUtils {
     public static void saveAESKey(int chatID, SecretKey aesKey) {
         try (FileOutputStream fos = new FileOutputStream(KEY_FOLDER_STRING + chatID + AES_KEY_STRING)) {
             fos.write(aesKey.getEncoded());
+            System.out.println("Saved AES key successfully.");
         } catch (IOException e) {
             System.out.println(e.toString());
         }

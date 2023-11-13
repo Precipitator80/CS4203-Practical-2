@@ -130,7 +130,10 @@ public class DBUtils {
         try (Connection connection = openConnection();
                 PreparedStatement ps = readChatKeyPS(connection, id);
                 ResultSet resultSet = ps.executeQuery()) {
-            return KeyUtils.readRSAPublicKey(resultSet.getBytes(1));
+            if (resultSet.next()) {
+                return KeyUtils.readRSAPublicKey(resultSet.getBytes(1));
+            }
+            return null;
         }
     }
 
@@ -152,6 +155,7 @@ public class DBUtils {
             throws SQLException {
         try (Connection connection = openConnection();
                 CallableStatement cs = createChatPS(connection, chat_name, rsa_public_key);) {
+            System.out.println("Public key length: " + rsa_public_key.length);
             cs.executeUpdate();
             return cs.getInt(3);
         }
@@ -159,7 +163,7 @@ public class DBUtils {
 
     private static CallableStatement createChatPS(Connection connection, String chat_name, byte[] rsa_public_key)
             throws SQLException {
-        CallableStatement cs = connection.prepareCall("CALL proc_add_person(?,?,?,?,?)");
+        CallableStatement cs = connection.prepareCall("CALL proc_create_chat(?,?,?)");
         cs.setString(1, chat_name);
         cs.setBytes(2, rsa_public_key);
         cs.registerOutParameter(3, Types.INTEGER);
