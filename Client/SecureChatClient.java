@@ -116,6 +116,18 @@ public class SecureChatClient {
                     directMode(socket, serverOutput, userInput);
                     break;
             }
+            if (!shuttingDown) {
+                // Wait for a handle mode change.
+                try {
+                    synchronized (monitor) {
+                        monitor.wait();
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                break;
+            }
         }
     }
 
@@ -148,11 +160,12 @@ public class SecureChatClient {
         } catch (InterruptedException e) {
             e.printStackTrace();
         } catch (Exception e) {
+            System.out.println("Failed to do challenge.");
             System.out.println(e.toString());
-            serverOutput.println("Failed to do challenge.");
+            serverOutput.println(HandleMode.CHALLENGE_FAILED);
         }
+        challenge = null;
         System.out.println("Quit challenge response mode.");
-        handleMode = HandleMode.CHAT;
     }
 
     private void chat(PrintWriter serverOutput, BufferedReader userInput) throws IOException {
@@ -166,7 +179,6 @@ public class SecureChatClient {
                     if (userInputLine.charAt(0) == '/') {
                         serverOutput.println(userInputLine);
                         if (HandleMode.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
-                            handleMode = HandleMode.CHAT_SELECT;
                             break;
                         }
                     } else {
@@ -192,7 +204,6 @@ public class SecureChatClient {
             // Check whether the user wants to quit first.
             if (HandleMode.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
                 serverOutput.println(userInputLine);
-                handleMode = HandleMode.CHAT_SELECT;
                 return;
             }
 
@@ -221,42 +232,30 @@ public class SecureChatClient {
             serverOutput.println(chatPublicKeyString);
             System.out.println("Generated keys successfully.");
         }
-
-        synchronized (monitor) {
-            try {
-                monitor.wait();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
         System.out.println("Quit chat creation mode.");
     }
 
     private void chatSelect(SSLSocket socket, PrintWriter serverOutput, BufferedReader userInput) throws IOException {
         String userInputLine;
         System.out.println("Entered chat select mode.");
-        while (handleMode == HandleMode.CHAT_SELECT) {
-            if ((userInputLine = userInput.readLine()) != null) {
-                // Check whether the user wants to quit first.
-                if (HandleMode.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
-                    shuttingDown = true;
-                    System.out.println("Closing socket and shutting down client.");
-                    socket.close();
-                    return;
-                } else if (HandleMode.CHAT_CREATION_COMMAND.equalsIgnoreCase(userInputLine)) {
-                    // Check whether the user wants to switch to chat creation mode.
-                    serverOutput.println(userInputLine);
-                    handleMode = HandleMode.CHAT_CREATION;
-                } else {
-                    // If the user does not want to quit, send chat ID.
-                    try {
-                        chatID = Integer.parseInt(userInputLine);
-                        serverOutput.println(chatID);
-                        handleMode = HandleMode.CHALLENGE_RESPONSE;
-                    } catch (NumberFormatException e) {
-                        System.out
-                                .println("Failed to read \"" + userInputLine + "\". Please enter a valid integer.");
-                    }
+        if ((userInputLine = userInput.readLine()) != null) {
+            // Check whether the user wants to quit first.
+            if (HandleMode.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
+                shuttingDown = true;
+                System.out.println("Closing socket and shutting down client.");
+                socket.close();
+                return;
+            } else if (HandleMode.CHAT_CREATION_COMMAND.equalsIgnoreCase(userInputLine)) {
+                // Check whether the user wants to switch to chat creation mode.
+                serverOutput.println(userInputLine);
+            } else {
+                // If the user does not want to quit, send chat ID.
+                try {
+                    chatID = Integer.parseInt(userInputLine);
+                    serverOutput.println(chatID);
+                } catch (NumberFormatException e) {
+                    System.out
+                            .println("Failed to read \"" + userInputLine + "\". Please enter a valid integer.");
                 }
             }
         }
@@ -294,6 +293,8 @@ public class SecureChatClient {
                                 if (!changedMode) {
                                     processResponse(serverResponse);
                                 }
+                            } else {
+                                break;
                             }
                         }
                     }
@@ -312,6 +313,9 @@ public class SecureChatClient {
         if (newHandleMode != null && handleMode != newHandleMode) {
             handleMode = newHandleMode;
             System.out.println("Switched handle mode: " + handleMode);
+            synchronized (monitor) {
+                monitor.notify();
+            }
             return true;
         }
         return false;
@@ -355,10 +359,6 @@ public class SecureChatClient {
                     KeyUtils.saveRSAPrivateKey(chatID, chatPrivateKey, keyFolder);
                     KeyUtils.saveRSAPublicKey(chatID, chatPublicKey, keyFolder);
                     KeyUtils.saveAESKey(chatID, chatSymmetricKey, keyFolder);
-                    synchronized (monitor) {
-                        handleMode = HandleMode.CHAT;
-                        monitor.notify();
-                    }
                 } catch (NumberFormatException e) {
                     System.out.println("Server response: " + serverResponse);
                 }

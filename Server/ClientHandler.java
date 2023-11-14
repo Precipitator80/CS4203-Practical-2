@@ -59,9 +59,15 @@ public class ClientHandler implements Runnable {
                 + "\" to start creating a new chat.");
         while (!clientSocket.isClosed()) {
             switchHandleMode(HandleMode.CHAT_SELECT);
+            System.out.println("Waiting for chat number");
 
             // Ask for a chat.
             String userInputLine = clientInput.readLine();
+
+            // Check whether the user has quit.
+            if (userInputLine == null) {
+                break;
+            }
             if (HandleMode.CHAT_CREATION_COMMAND.equalsIgnoreCase(userInputLine)) {
                 chatCreation();
             } else {
@@ -94,8 +100,14 @@ public class ClientHandler implements Runnable {
         clientOutput.println(challengeString);
 
         // Wait for the response from the client.
-        byte[] encryptedResponse = Base64.getDecoder().decode(clientInput.readLine());
         try {
+            String response = clientInput.readLine();
+            if (response.equals(HandleMode.CHALLENGE_FAILED)) {
+                System.out.println("Client reported failed challenge!");
+                return;
+            }
+
+            byte[] encryptedResponse = Base64.getDecoder().decode(response);
             // Read the chat's public key from the database to decrypt the response.
             PublicKey publicKey = dbUtility.readChatKey(chatID);
             byte[] decryptedResponse = KeyUtils.decryptBytes(encryptedResponse, publicKey, KeyUtils.RSA);
