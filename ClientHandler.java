@@ -8,7 +8,7 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
-import java.util.Queue;
+import java.util.Stack;
 
 import javax.net.ssl.SSLSocket;
 
@@ -127,9 +127,14 @@ public class ClientHandler implements Runnable {
         byte[] rsa_public_key = Base64.getDecoder().decode(chatPublicKeyString);
         System.out.println("Received public key bytes: " + chatPublicKeyString);
 
-        // Attempt to create a chat with the given name and public key.
         try {
+            // Attempt to create a chat with the given name and public key.
             int chatID = DBUtils.createChat(chatName, rsa_public_key);
+
+            // Send the new chatID to the client.
+            clientOutput.println(chatID);
+
+            // Switch to the new chat.
             System.out.println("Created chat: " + chatID + ". Switching to it now.");
             chat(chatID); // TODO Make sure handler can receive messages after chat creation.
         } catch (SQLException e) {
@@ -198,13 +203,13 @@ public class ClientHandler implements Runnable {
     }
 
     private void readChat(int id, int offset_val) throws SQLException {
-        Queue<String> messages = DBUtils.readChat(id, offset_val);
+        Stack<String> messages = DBUtils.readChat(id, offset_val);
 
         if (messages.size() == 0) {
             clientOutput.println("No messages to display.");
         } else {
             while (messages.size() > 0) {
-                clientOutput.println(messages.poll());
+                clientOutput.println(messages.pop());
             }
         }
     }

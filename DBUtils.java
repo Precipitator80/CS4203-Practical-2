@@ -10,8 +10,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Types;
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.Stack;
 
 /**
  * Utilities class that performs database actions for the application.
@@ -91,11 +90,11 @@ public class DBUtils {
      * @param offset_val An offset to allow for reading beyond the last few messages.
      * @return Messages from the cat.
      */
-    public static Queue<String> readChat(int id, int offset_val) throws SQLException {
+    public static Stack<String> readChat(int id, int offset_val) throws SQLException {
         try (Connection connection = openConnection();
                 PreparedStatement ps = readChatPS(connection, id, offset_val);
                 ResultSet resultSet = ps.executeQuery()) {
-            Queue<String> messagesStack = new LinkedList<String>();
+            Stack<String> messagesStack = new Stack<String>();
             while (resultSet.next()) {
                 messagesStack.add(resultSet.getString(1));
             }

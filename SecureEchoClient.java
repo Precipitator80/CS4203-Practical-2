@@ -146,15 +146,15 @@ public class SecureEchoClient extends AbstractEchoClient {
                             handleMode = HandleModes.CHAT_SELECT;
                             break;
                         }
-                    }
-
-                    // If the user does not want to quit, encrypt their chat message and send it to the server.
-                    try {
-                        String encryptedString = KeyUtils.encryptString(userInputLine, chatSymmetricKey,
-                                KeyUtils.AES);
-                        serverOutput.println(encryptedString);
-                    } catch (Exception e) {
-                        System.out.println("Failed to encrypt message. " + e.toString());
+                    } else {
+                        // If the user does not want to quit, encrypt their chat message and send it to the server.
+                        try {
+                            String encryptedString = KeyUtils.encryptString(userInputLine, chatSymmetricKey,
+                                    KeyUtils.AES);
+                            serverOutput.println(encryptedString);
+                        } catch (Exception e) {
+                            System.out.println("Failed to encrypt message. " + e.toString());
+                        }
                     }
                 }
             }
@@ -333,6 +333,7 @@ public class SecureEchoClient extends AbstractEchoClient {
                     KeyUtils.saveRSAPublicKey(chatID, chatPublicKey);
                     KeyUtils.saveAESKey(chatID, chatSymmetricKey);
                     synchronized (monitor) {
+                        handleMode = HandleModes.CHAT;
                         monitor.notify();
                     }
                 } catch (NumberFormatException e) {

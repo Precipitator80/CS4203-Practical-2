@@ -69,7 +69,7 @@ public class KeyUtils {
                 System.out.println("Generated keys successfully.");
             }
 
-            String originalString = "This is the sixth message!";
+            String originalString = "The first chat!";
             String encryptedString = encryptString(originalString, aesKey, AES);
             byte[] encryptedKey = encryptKey(aesKey, rsaPublicKey, RSA);
 
@@ -80,7 +80,7 @@ public class KeyUtils {
             System.out.println("Encrypted String:\n" + encryptedString);
             System.out.println("Decrypted String:\n" + decryptedString);
             System.out.println("Encrypted Key:\n" + encryptedKey);
-            System.out.println("Decrypted Key:\n" + decryptedKey);
+            System.out.println("Decrypted Key:\n" + Base64.getEncoder().encodeToString(rsaPublicKey.getEncoded()));
 
         } catch (Exception e) {
             e.printStackTrace();
