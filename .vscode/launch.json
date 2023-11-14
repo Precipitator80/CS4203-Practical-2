@@ -6,121 +6,19 @@
     "configurations": [
         {
             "type": "java",
-            "name": "Main",
+            "name": "SecureChatClient",
             "request": "launch",
-            "mainClass": "Main",
-            "projectName": "Practical 2_58731bf8"
+            "mainClass": "Client.SecureChatClient",
+            "projectName": "Practical 2_58731bf8",
+            "args": "localhost 8000 Shared/ca-cert.pem \"Client/Chat Keys/client-cert.pem\" \"Client/Chat Keys/client-key.pem\" \"Client/Chat Keys/\""
         },
         {
             "type": "java",
-            "name": "KeyUtils",
+            "name": "SecureChatServer",
             "request": "launch",
-            "mainClass": "KeyUtils",
-            "projectName": "Practical 2_58731bf8"
-        },
-        {
-            "type": "java",
-            "name": "SimpleEchoClient",
-            "request": "launch",
-            "mainClass": "SimpleEchoClient",
-            "projectName": "Practical 2_58731bf8"
-        },
-        {
-            "type": "java",
-            "name": "SecureEchoClient",
-            "request": "launch",
-            "mainClass": "SecureEchoClient",
-            "projectName": "Practical 2_58731bf8"
-        },
-        {
-            "type": "java",
-            "name": "SecureEchoServer",
-            "request": "launch",
-            "mainClass": "SecureEchoServer",
-            "projectName": "Practical 2_58731bf8"
-        },
-        {
-            "type": "java",
-            "name": "SslUtil",
-            "request": "launch",
-            "mainClass": "SslUtil",
-            "projectName": "Exercise 2_dfa2860c"
-        },
-        {
-            "type": "java",
-            "name": "TLSServer",
-            "request": "launch",
-            "mainClass": "TLSServer",
-            "projectName": "Exercise 2_dfa2860c"
-        },
-        {
-            "type": "java",
-            "name": "SSLSocketClient",
-            "request": "launch",
-            "mainClass": "SSLSocketClient",
-            "projectName": "Exercise 2_dfa2860c"
-        },
-        {
-            "type": "java",
-            "name": "SSLSocketEchoServer",
-            "request": "launch",
-            "mainClass": "SSLSocketEchoServer",
-            "projectName": "Exercise 2_dfa2860c"
-        },
-        {
-            "type": "java",
-            "name": "EchoClient",
-            "request": "launch",
-            "mainClass": "EchoClient",
-            "projectName": "Exercise 2_dfa2860c"
-        },
-        {
-            "type": "java",
-            "name": "EchoServer",
-            "request": "launch",
-            "mainClass": "EchoServer",
-            "projectName": "Exercise 2_dfa2860c"
-        },
-        {
-            "type": "java",
-            "name": "SecureEchoClient",
-            "request": "launch",
-            "mainClass": "SecureEchoClient",
-            "projectName": "Exercise 2_dfa2860c"
-        },
-        {
-            "type": "java",
-            "name": "SecureEchoServer",
-            "request": "launch",
-            "mainClass": "SecureEchoServer",
-            "projectName": "Exercise 2_dfa2860c"
-        },
-        {
-            "type": "java",
-            "name": "SimpleEchoClient",
-            "request": "launch",
-            "mainClass": "SimpleEchoClient",
-            "projectName": "Exercise 2_dfa2860c"
-        },
-        {
-            "type": "java",
-            "name": "HelloWorld",
-            "request": "launch",
-            "mainClass": "HelloWorld",
-            "projectName": "Exercise 2_dfa2860c"
-        },
-        {
-            "type": "java",
-            "name": "SimpleEchoServer",
-            "request": "launch",
-            "mainClass": "SimpleEchoServer",
-            "projectName": "Exercise 2_dfa2860c"
-        },
-        {
-            "type": "java",
-            "name": "Current File",
-            "request": "launch",
-            "mainClass": "${file}"
+            "mainClass": "SecureChatServer",
+            "projectName": "Practical 2_58731bf8",
+            "args": "Shared/ca-cert.pem Server/server-cert.pem Server/server-key.pem jdbc:mariadb://bms1.teaching.cs.st-andrews.ac.uk/bms1_cs4203p2 bms1 3fpj3!3JZ2x5zT"
         }
     ]
 }

@@ -1,4 +1,6 @@
+package MiscellaneousFiles;
 // Adapted from example code:
+
 // Java Echo Server Example Code - Oracle - https://docs.oracle.com/javase/tutorial/networking/sockets/examples/EchoServer.java - Accessed 04.11.2023
 
 import java.net.*;
@@ -35,7 +37,6 @@ public class SimpleEchoServer extends AbstractEchoServer {
         }
     }
 
-    @Override
     public void handleClient(Socket clientSocket) {
         try (
                 // Set up a reader and writer to transfer data between the client and server.

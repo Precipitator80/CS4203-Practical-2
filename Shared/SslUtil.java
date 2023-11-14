@@ -1,3 +1,4 @@
+package Shared;
 
 /**
  * Utility class to read encrypted PEM files and generate a

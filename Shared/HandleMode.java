@@ -1,4 +1,6 @@
-public enum HandleModes {
+package Shared;
+
+public enum HandleMode {
     CHAT_SELECT,
     CHALLENGE_RESPONSE,
     CHAT,
@@ -19,8 +21,8 @@ public enum HandleModes {
      * @param test The string to test against the enum.
      * @return The matching enum value.
      */
-    public static HandleModes stringToHandleMode(String test) {
-        for (HandleModes handleMode : HandleModes.values()) {
+    public static HandleMode stringToHandleMode(String test) {
+        for (HandleMode handleMode : HandleMode.values()) {
             if (handleMode.name().equals(test)) {
                 return handleMode;
             }

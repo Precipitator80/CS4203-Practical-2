@@ -1,8 +1,12 @@
+package MiscellaneousFiles;
 // Adapted from example code:
+
 // Java Echo Client Example Code - Oracle - https://docs.oracle.com/javase/tutorial/networking/sockets/examples/EchoClient.java - Accessed 04.11.2023
 
 import java.io.*;
 import java.net.*;
+
+import Shared.HandleMode;
 
 public class SimpleEchoClient extends AbstractEchoClient {
     public static void main(String[] args) throws IOException {
@@ -37,7 +41,7 @@ public class SimpleEchoClient extends AbstractEchoClient {
                 System.out.println("Server response: " + serverResponse);
 
                 // Let the user exit when typing "/exit".
-                if (HandleModes.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
+                if (HandleMode.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
                     break;
                 }
             }

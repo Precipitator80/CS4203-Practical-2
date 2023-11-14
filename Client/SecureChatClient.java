@@ -1,4 +1,6 @@
+package Client;
 // Adapted from example code:
+
 // Java Echo Client Example Code - Oracle - https://docs.oracle.com/javase/tutorial/networking/sockets/examples/EchoClient.java - Accessed 04.11.2023
 
 import java.io.*;
@@ -12,14 +14,42 @@ import javax.crypto.SecretKey;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
-public class SecureEchoClient extends AbstractEchoClient {
+import Shared.HandleMode;
+import Shared.KeyUtils;
+import Shared.SslUtil;
+
+public class SecureChatClient {
     public static void main(String[] args) throws IOException {
-        SecureEchoClient echoClient = new SecureEchoClient();
-        echoClient.readServerData(args);
-        echoClient.start();
+        new SecureChatClient(args).start();
     }
 
-    HandleModes handleMode = HandleModes.CHAT_SELECT;
+    public SecureChatClient(String[] args) {
+        if (args.length > 5) {
+            try {
+                hostAddress = args[0];
+                port = Integer.parseInt(args[1]);
+
+                String caCrtFile = args[2];
+                String crtFile = args[3];
+                String keyFile = args[4];
+                sslSocketFactory = SslUtil.getSSLSocketFactory(caCrtFile, crtFile, keyFile);
+
+                keyFolder = args[5];
+                return;
+            } catch (NumberFormatException e) {
+                System.err.println("Port must be a valid integer!");
+            }
+        }
+        throw new IllegalArgumentException(
+                "Usage: java SecureChatClient <host address> <port number> <caCrtFile> <crtFile> <keyFile> <chat key folder>");
+    }
+
+    String hostAddress;
+    int port;
+    String keyFolder;
+    SSLSocketFactory sslSocketFactory;
+
+    HandleMode handleMode = HandleMode.CHAT_SELECT;
     boolean shuttingDown;
     byte[] challenge;
     int chatID;
@@ -29,13 +59,8 @@ public class SecureEchoClient extends AbstractEchoClient {
     PublicKey chatPublicKey;
     SecretKey chatSymmetricKey;
 
-    @Override
     public void start() {
         // Try to connect to the server specified.
-        SSLSocketFactory sslSocketFactory = SslUtil.getSSLSocketFactory("PEM Files/ca-cert.pem",
-                "PEM Files/client-cert.pem",
-                "PEM Files/client-key.pem");
-
         try (
                 // Create a socket to connect to the server.
                 SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(hostAddress, port);
@@ -47,7 +72,7 @@ public class SecureEchoClient extends AbstractEchoClient {
                 // Use a buffered reader to let the user send messages through the client.
                 BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in))) {
             socket.startHandshake();
-            System.out.println("Connected to Echo Server. Type " + HandleModes.EXIT_COMMAND + " to quit.");
+            System.out.println("Connected to Echo Server. Type " + HandleMode.EXIT_COMMAND + " to quit.");
 
             // Wait for any messages from the server.
             listener(socket, serverInput);
@@ -58,7 +83,7 @@ public class SecureEchoClient extends AbstractEchoClient {
             System.err.println("Don't know about host " + hostAddress);
             System.exit(1);
         } catch (IOException e) {
-            System.err.println("Couldn't get I/O for the connection to " +
+            System.err.println("I/O for connection to " +
                     hostAddress + "\n" + e.toString());
             System.exit(1);
         }
@@ -100,8 +125,6 @@ public class SecureEchoClient extends AbstractEchoClient {
      */
     private void challengeResponse(PrintWriter serverOutput) {
         System.out.println("Entered challenge response mode.");
-        //System.out.print("."); // TODO Remove this but make sure the client does not get stuck here.
-
         try {
             // Wait for the challenge to be received.
             synchronized (monitor) {
@@ -110,7 +133,7 @@ public class SecureEchoClient extends AbstractEchoClient {
 
             // Encrypt the challenge using the chat's private key.
             System.out.println("Encrypting challenge.");
-            chatPrivateKey = KeyUtils.readRSAPrivateKey(chatID);
+            chatPrivateKey = KeyUtils.readRSAPrivateKey(chatID, keyFolder);
             byte[] encryptedChallenge = KeyUtils.encryptBytes(challenge, chatPrivateKey,
                     KeyUtils.RSA);
 
@@ -129,21 +152,21 @@ public class SecureEchoClient extends AbstractEchoClient {
             serverOutput.println("Failed to do challenge.");
         }
         System.out.println("Quit challenge response mode.");
-        handleMode = HandleModes.CHAT;
+        handleMode = HandleMode.CHAT;
     }
 
     private void chat(PrintWriter serverOutput, BufferedReader userInput) throws IOException {
         System.out.println("Entered chat mode.");
-        chatSymmetricKey = KeyUtils.readAESKey(chatID);
-        while (handleMode == HandleModes.CHAT) {
+        chatSymmetricKey = KeyUtils.readAESKey(chatID, keyFolder);
+        while (handleMode == HandleMode.CHAT) {
             String userInputLine;
             if ((userInputLine = userInput.readLine()) != null) {
                 if (userInputLine.length() > 0) {
                     // Check whether the user wants to quit first.
                     if (userInputLine.charAt(0) == '/') {
                         serverOutput.println(userInputLine);
-                        if (HandleModes.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
-                            handleMode = HandleModes.CHAT_SELECT;
+                        if (HandleMode.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
+                            handleMode = HandleMode.CHAT_SELECT;
                             break;
                         }
                     } else {
@@ -167,9 +190,9 @@ public class SecureEchoClient extends AbstractEchoClient {
         String userInputLine;
         if ((userInputLine = userInput.readLine()) != null) {
             // Check whether the user wants to quit first.
-            if (HandleModes.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
+            if (HandleMode.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
                 serverOutput.println(userInputLine);
-                handleMode = HandleModes.CHAT_SELECT;
+                handleMode = HandleMode.CHAT_SELECT;
                 return;
             }
 
@@ -212,24 +235,24 @@ public class SecureEchoClient extends AbstractEchoClient {
     private void chatSelect(SSLSocket socket, PrintWriter serverOutput, BufferedReader userInput) throws IOException {
         String userInputLine;
         System.out.println("Entered chat select mode.");
-        while (handleMode == HandleModes.CHAT_SELECT) {
+        while (handleMode == HandleMode.CHAT_SELECT) {
             if ((userInputLine = userInput.readLine()) != null) {
                 // Check whether the user wants to quit first.
-                if (HandleModes.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
+                if (HandleMode.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
                     shuttingDown = true;
                     System.out.println("Closing socket and shutting down client.");
                     socket.close();
                     return;
-                } else if (HandleModes.CHAT_CREATION_COMMAND.equalsIgnoreCase(userInputLine)) {
+                } else if (HandleMode.CHAT_CREATION_COMMAND.equalsIgnoreCase(userInputLine)) {
                     // Check whether the user wants to switch to chat creation mode.
                     serverOutput.println(userInputLine);
-                    handleMode = HandleModes.CHAT_CREATION;
+                    handleMode = HandleMode.CHAT_CREATION;
                 } else {
                     // If the user does not want to quit, send chat ID.
                     try {
                         chatID = Integer.parseInt(userInputLine);
                         serverOutput.println(chatID);
-                        handleMode = HandleModes.CHALLENGE_RESPONSE;
+                        handleMode = HandleMode.CHALLENGE_RESPONSE;
                     } catch (NumberFormatException e) {
                         System.out
                                 .println("Failed to read \"" + userInputLine + "\". Please enter a valid integer.");
@@ -244,7 +267,7 @@ public class SecureEchoClient extends AbstractEchoClient {
         String userInputLine;
         if ((userInputLine = userInput.readLine()) != null) {
             // Check whether the user wants to quit first.
-            if (HandleModes.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
+            if (HandleMode.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
                 shuttingDown = true;
                 System.out.println("Closing socket and shutting down client.");
                 socket.close();
@@ -285,7 +308,7 @@ public class SecureEchoClient extends AbstractEchoClient {
     }
 
     private boolean checkHandleMode(String serverResponse) {
-        HandleModes newHandleMode = HandleModes.stringToHandleMode(serverResponse);
+        HandleMode newHandleMode = HandleMode.stringToHandleMode(serverResponse);
         if (newHandleMode != null && handleMode != newHandleMode) {
             handleMode = newHandleMode;
             System.out.println("Switched handle mode: " + handleMode);
@@ -299,7 +322,7 @@ public class SecureEchoClient extends AbstractEchoClient {
             case CHAT:
                 try {
                     if (chatSymmetricKey == null) {
-                        chatSymmetricKey = KeyUtils.readAESKey(chatID);
+                        chatSymmetricKey = KeyUtils.readAESKey(chatID, keyFolder);
                     }
                     // Decrypt the message before displaying it.
                     String decryptedString = KeyUtils.decryptString(serverResponse,
@@ -329,11 +352,11 @@ public class SecureEchoClient extends AbstractEchoClient {
                     System.out.println("Got new chat ID: " + chatID);
 
                     // Wait for the new chat to be created on the database before saving the keys.
-                    KeyUtils.saveRSAPrivateKey(chatID, chatPrivateKey);
-                    KeyUtils.saveRSAPublicKey(chatID, chatPublicKey);
-                    KeyUtils.saveAESKey(chatID, chatSymmetricKey);
+                    KeyUtils.saveRSAPrivateKey(chatID, chatPrivateKey, keyFolder);
+                    KeyUtils.saveRSAPublicKey(chatID, chatPublicKey, keyFolder);
+                    KeyUtils.saveAESKey(chatID, chatSymmetricKey, keyFolder);
                     synchronized (monitor) {
-                        handleMode = HandleModes.CHAT;
+                        handleMode = HandleMode.CHAT;
                         monitor.notify();
                     }
                 } catch (NumberFormatException e) {

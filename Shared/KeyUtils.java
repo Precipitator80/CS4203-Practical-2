@@ -1,3 +1,4 @@
+package Shared;
 // RSA in Java - Krzysztof Majewski - https://www.baeldung.com/java-rsa - Accessed 11.11.2023
 
 import java.io.File;
@@ -29,7 +30,6 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 public class KeyUtils {
-    public static final String KEY_FOLDER_STRING = "Chat Keys/";
     public static final String PUBLIC_KEY_STRING = "-rsa-public-key.pem";
     public static final String PRIVATE_KEY_STRING = "-rsa-private-key.pem";
     public static final String AES_KEY_STRING = "-aes-key.pem";
@@ -49,22 +49,24 @@ public class KeyUtils {
         try {
             int chatID = 1;
 
+            String keyFolder = "Shared/";
+
             PublicKey rsaPublicKey;
             PrivateKey rsaPrivateKey;
             SecretKey aesKey;
             try {
-                rsaPublicKey = readRSAPublicKey(chatID);
-                rsaPrivateKey = readRSAPrivateKey(chatID);
-                aesKey = readAESKey(chatID);
+                rsaPublicKey = readRSAPublicKey(chatID, keyFolder);
+                rsaPrivateKey = readRSAPrivateKey(chatID, keyFolder);
+                aesKey = readAESKey(chatID, keyFolder);
                 System.out.println("Read keys successfully.");
             } catch (FileNotFoundException e) {
                 KeyPair rsaKeyPair = generateRSAKeyPair();
-                saveRSAKeyPair(chatID, rsaKeyPair);
+                saveRSAKeyPair(chatID, rsaKeyPair, keyFolder);
                 rsaPublicKey = rsaKeyPair.getPublic();
                 rsaPrivateKey = rsaKeyPair.getPrivate();
 
                 aesKey = generateAESKey();
-                saveAESKey(chatID, aesKey);
+                saveAESKey(chatID, aesKey, keyFolder);
 
                 System.out.println("Generated keys successfully.");
             }
@@ -80,7 +82,7 @@ public class KeyUtils {
             System.out.println("Encrypted String:\n" + encryptedString);
             System.out.println("Decrypted String:\n" + decryptedString);
             System.out.println("Encrypted Key:\n" + encryptedKey);
-            System.out.println("Decrypted Key:\n" + Base64.getEncoder().encodeToString(rsaPublicKey.getEncoded()));
+            System.out.println("Decrypted Key:\n" + Base64.getEncoder().encodeToString(decryptedKey.getEncoded()));
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -214,13 +216,13 @@ public class KeyUtils {
      * @param chatID The chat the key pair is for.
      * @param rsaKeyPair The key pair to save.
      */
-    public static void saveRSAKeyPair(int chatID, KeyPair rsaKeyPair) {
-        saveRSAPublicKey(chatID, rsaKeyPair.getPublic());
-        saveRSAPrivateKey(chatID, rsaKeyPair.getPrivate());
+    public static void saveRSAKeyPair(int chatID, KeyPair rsaKeyPair, String keyFolder) {
+        saveRSAPublicKey(chatID, rsaKeyPair.getPublic(), keyFolder);
+        saveRSAPrivateKey(chatID, rsaKeyPair.getPrivate(), keyFolder);
     }
 
-    public static void saveRSAPublicKey(int chatID, PublicKey publicKey) {
-        try (FileOutputStream fos = new FileOutputStream(KEY_FOLDER_STRING + chatID + PUBLIC_KEY_STRING)) {
+    public static void saveRSAPublicKey(int chatID, PublicKey publicKey, String keyFolder) {
+        try (FileOutputStream fos = new FileOutputStream(keyFolder + chatID + PUBLIC_KEY_STRING)) {
             fos.write(publicKey.getEncoded());
             System.out.println("Saved public key successfully.");
         } catch (IOException e) {
@@ -228,8 +230,8 @@ public class KeyUtils {
         }
     }
 
-    public static void saveRSAPrivateKey(int chatID, PrivateKey privateKey) {
-        try (FileOutputStream fos = new FileOutputStream(KEY_FOLDER_STRING + chatID + PRIVATE_KEY_STRING)) {
+    public static void saveRSAPrivateKey(int chatID, PrivateKey privateKey, String keyFolder) {
+        try (FileOutputStream fos = new FileOutputStream(keyFolder + chatID + PRIVATE_KEY_STRING)) {
             fos.write(privateKey.getEncoded());
             System.out.println("Saved private key successfully.");
         } catch (IOException e) {
@@ -242,8 +244,8 @@ public class KeyUtils {
      * @param chatID The chat the key is for.
      * @param aesKey The key to save.
      */
-    public static void saveAESKey(int chatID, SecretKey aesKey) {
-        try (FileOutputStream fos = new FileOutputStream(KEY_FOLDER_STRING + chatID + AES_KEY_STRING)) {
+    public static void saveAESKey(int chatID, SecretKey aesKey, String keyFolder) {
+        try (FileOutputStream fos = new FileOutputStream(keyFolder + chatID + AES_KEY_STRING)) {
             fos.write(aesKey.getEncoded());
             System.out.println("Saved AES key successfully.");
         } catch (IOException e) {
@@ -258,9 +260,9 @@ public class KeyUtils {
      * @throws InvalidKeySpecException If the key file does not match the key specification.
      * @throws IOException If the file containing the key could not be found or read properly.
      */
-    public static PublicKey readRSAPublicKey(int chatID)
+    public static PublicKey readRSAPublicKey(int chatID, String keyFolder)
             throws NoSuchAlgorithmException, InvalidKeySpecException, IOException {
-        byte[] bytes = readKeyBytes(chatID + PUBLIC_KEY_STRING);
+        byte[] bytes = readKeyBytes(keyFolder + chatID + PUBLIC_KEY_STRING);
         return readRSAPublicKey(bytes);
     }
 
@@ -278,10 +280,11 @@ public class KeyUtils {
      * @throws InvalidKeySpecException If the key file does not match the key specification.
      * @throws IOException If the file containing the key could not be found or read properly.
      */
-    public static PrivateKey readRSAPrivateKey(int chatID)
+    public static PrivateKey readRSAPrivateKey(int chatID, String keyFolder)
             throws NoSuchAlgorithmException, InvalidKeySpecException, IOException {
         KeyFactory keyFactory = KeyFactory.getInstance(RSA);
-        PKCS8EncodedKeySpec publicKeySpec = new PKCS8EncodedKeySpec(readKeyBytes(chatID + PRIVATE_KEY_STRING));
+        PKCS8EncodedKeySpec publicKeySpec = new PKCS8EncodedKeySpec(
+                readKeyBytes(keyFolder + chatID + PRIVATE_KEY_STRING));
         return keyFactory.generatePrivate(publicKeySpec);
     }
 
@@ -291,18 +294,18 @@ public class KeyUtils {
      * @return The AES key for the chat.
      * @throws IOException If the file containing the key could not be found or read properly.
      */
-    public static SecretKey readAESKey(int chatID) throws IOException {
-        return new SecretKeySpec(readKeyBytes(chatID + AES_KEY_STRING), AES);
+    public static SecretKey readAESKey(int chatID, String keyFolder) throws IOException {
+        return new SecretKeySpec(readKeyBytes(keyFolder + chatID + AES_KEY_STRING), AES);
     }
 
     /**
      * Reads a key at a given path.
-     * @param fileName The name of the key file.
+     * @param filePath The path to the key file.
      * @return The bytes of the key.
      * @throws IOException If the file could not be found or read properly.
      */
-    public static byte[] readKeyBytes(String fileName) throws IOException {
-        File keyFile = new File(KEY_FOLDER_STRING + fileName);
+    public static byte[] readKeyBytes(String filePath) throws IOException {
+        File keyFile = new File(filePath);
         return Files.readAllBytes(keyFile.toPath());
     }
 }
