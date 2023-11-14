@@ -35,7 +35,7 @@ SELECT line_text
 FROM chat_line
 WHERE chat_id = chat_line.chat_id
 ORDER BY chat_line.chat_id DESC
-LIMIT 10 OFFSET offset_val;
+LIMIT 25 OFFSET offset_val;
 END;
 /*----------------------------------------------*/
 -- Procedure to create a new chat, returning the ID.

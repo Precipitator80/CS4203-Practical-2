@@ -146,7 +146,7 @@ public class ClientHandler implements Runnable {
             clientOutput.println("Chat name:");
             clientOutput.println(DBUtils.getChatName(chatID));
             clientOutput.println("Printing latest messages. Use " + HandleModes.PREVIOUS_COMMAND
-                    + " with an offset value to load earlier messages (i.e. " + HandleModes.PREVIOUS_COMMAND + " 10).");
+                    + " with an offset value to load earlier messages (i.e. " + HandleModes.PREVIOUS_COMMAND + " 25).");
 
             readChat(chatID, 0);
 
