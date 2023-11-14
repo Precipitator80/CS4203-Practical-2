@@ -19,13 +19,14 @@ public class SecureEchoClient extends AbstractEchoClient {
         echoClient.start();
     }
 
-    boolean shuttingDown;
     HandleModes handleMode = HandleModes.CHAT_SELECT;
+    boolean shuttingDown;
+    byte[] challenge;
     int chatID;
+
     PrivateKey chatPrivateKey;
     PublicKey chatPublicKey;
     SecretKey chatSymmetricKey;
-    String challenge;
 
     @Override
     public void start() {
@@ -62,6 +63,13 @@ public class SecureEchoClient extends AbstractEchoClient {
         }
     }
 
+    /**
+     * Output part of the client that sends messages to the server..
+     * @param socket The secure socket to the server.
+     * @param serverOutput A writer to output text to the server.
+     * @param userInput A reader to get user input.
+     * @throws IOException
+     */
     public void sender(SSLSocket socket, PrintWriter serverOutput, BufferedReader userInput) throws IOException {
         while (!socket.isClosed()) {
             switch (handleMode) {
@@ -84,20 +92,32 @@ public class SecureEchoClient extends AbstractEchoClient {
         }
     }
 
+    /**
+     * Performs the challenge as part of the server's challenge response protocol when entering a chat.
+     * @param serverOutput A writer to output text to the server.
+     */
     private void challengeResponse(PrintWriter serverOutput) {
         boolean attemptedChallenge = false;
         System.out.println("Entered challenge response mode.");
         while (handleMode == HandleModes.CHALLENGE_RESPONSE) {
-            System.out.println(handleMode);
+            //System.out.print("."); // TODO Remove this but make sure the client does not get stuck here.
             if (!attemptedChallenge) {
                 try {
+                    // Wait for the challenge to be received.
                     if (challenge != null) {
+                        // Encrypt the challenge using the chat's private key.
                         System.out.println("Encrypting challenge.");
                         chatPrivateKey = KeyUtils.readRSAPrivateKey(chatID);
-                        String encryptedChallenge = KeyUtils.encryptString(challenge, chatPrivateKey,
+                        byte[] encryptedChallenge = KeyUtils.encryptBytes(challenge, chatPrivateKey,
                                 KeyUtils.RSA);
-                        serverOutput.println(encryptedChallenge);
+
+                        String encryptedChallengeString = Base64.getEncoder().encodeToString(encryptedChallenge);
+
+                        // Send the response back to the server.
+                        serverOutput.println(encryptedChallengeString);
                         System.out.println("Sent challenge response to server.");
+
+                        // Mark the challenge as attempted.
                         challenge = null;
                         attemptedChallenge = true;
                     }
@@ -247,6 +267,9 @@ public class SecureEchoClient extends AbstractEchoClient {
                                     switch (handleMode) {
                                         case CHAT:
                                             try {
+                                                if (chatSymmetricKey == null) {
+                                                    chatSymmetricKey = KeyUtils.readAESKey(chatID);
+                                                }
                                                 // Decrypt the message before displaying it.
                                                 String decryptedString = KeyUtils.decryptString(serverResponse,
                                                         chatSymmetricKey,
@@ -257,8 +280,14 @@ public class SecureEchoClient extends AbstractEchoClient {
                                             }
                                             break;
                                         case CHALLENGE_RESPONSE:
-                                            System.out.println("Received challenge: " + serverResponse);
-                                            challenge = serverResponse;
+                                            if (challenge == null) {
+                                                try {
+                                                    challenge = Base64.getDecoder().decode(serverResponse);
+                                                    System.out.println("Received challenge: " + serverResponse);
+                                                } catch (Exception e) {
+                                                    System.out.println("Server response: " + serverResponse);
+                                                }
+                                            }
                                             break;
                                         case CHAT_CREATION:
                                             try {
@@ -293,7 +322,7 @@ public class SecureEchoClient extends AbstractEchoClient {
 
     private boolean checkHandleMode(String serverResponse) {
         HandleModes newHandleMode = HandleModes.stringToHandleMode(serverResponse);
-        if (newHandleMode != null) {
+        if (newHandleMode != null && handleMode != newHandleMode) {
             handleMode = newHandleMode;
             System.out.println("Switched handle mode: " + handleMode);
             return true;

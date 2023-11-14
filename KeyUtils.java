@@ -71,7 +71,7 @@ public class KeyUtils {
 
             String originalString = "This is the sixth message!";
             String encryptedString = encryptString(originalString, aesKey, AES);
-            String encryptedKey = encryptKey(aesKey, rsaPublicKey, RSA);
+            byte[] encryptedKey = encryptKey(aesKey, rsaPublicKey, RSA);
 
             SecretKey decryptedKey = decryptKey(encryptedKey, AES, rsaPrivateKey, RSA);
             String decryptedString = decryptString(encryptedString, aesKey, AES);
@@ -126,7 +126,7 @@ public class KeyUtils {
             throws NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, IllegalBlockSizeException,
             BadPaddingException {
         byte[] unencryptedBytes = unencryptedString.getBytes(CHARSET);
-        return encryptBytes(unencryptedBytes, key, algorithm);
+        return Base64.getEncoder().encodeToString(encryptBytes(unencryptedBytes, key, algorithm));
     }
 
     /**
@@ -136,26 +136,25 @@ public class KeyUtils {
      * @param algorithm The algorithm to use to encrypt the key.
      * @return The encrypted key as a string.
      */
-    public static String encryptKey(Key keyToEncrypt, PublicKey keyForEncryption, String algorithm)
+    public static byte[] encryptKey(Key keyToEncrypt, PublicKey keyForEncryption, String algorithm)
             throws NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, IllegalBlockSizeException,
             BadPaddingException {
         return encryptBytes(keyToEncrypt.getEncoded(), keyForEncryption, algorithm);
     }
 
     /**
-     * Encrypts bytes as a string using a key.
+     * Encrypts bytes as using a key.
      * @param unencryptedBytes The bytes to encrypt.
      * @param key The key to encrypt the bytes with.
      * @param algorithm The algorithm to use to encrypt the bytes.
-     * @return The encrypted bytes as a string.
+     * @return The encrypted bytes.
      */
-    public static String encryptBytes(byte[] unencryptedBytes, Key key, String algorithm)
+    public static byte[] encryptBytes(byte[] unencryptedBytes, Key key, String algorithm)
             throws NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, IllegalBlockSizeException,
             BadPaddingException {
         Cipher encryptCipher = Cipher.getInstance(algorithm);
         encryptCipher.init(Cipher.ENCRYPT_MODE, key);
-        byte[] encryptedBytes = encryptCipher.doFinal(unencryptedBytes);
-        return Base64.getEncoder().encodeToString(encryptedBytes);
+        return encryptCipher.doFinal(unencryptedBytes);
     }
 
     /**
@@ -172,7 +171,7 @@ public class KeyUtils {
     public static String decryptString(String encryptedString, Key key, String algorithm)
             throws NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, IllegalBlockSizeException,
             BadPaddingException {
-        return new String(decryptBytes(encryptedString, key, algorithm), CHARSET);
+        return new String(decryptBytes(Base64.getDecoder().decode(encryptedString), key, algorithm), CHARSET);
     }
 
     /**
@@ -182,7 +181,7 @@ public class KeyUtils {
      * @param algorithm The algorithm to use to decrypt the key.
      * @return The decrypted key.
      */
-    public static SecretKeySpec decryptKey(String encryptedKey, String encryptedKeyAlgorithm,
+    public static SecretKeySpec decryptKey(byte[] encryptedKey, String encryptedKeyAlgorithm,
             PrivateKey keyForDecryption,
             String decryptionAlgorithm)
             throws NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, IllegalBlockSizeException,
@@ -198,11 +197,9 @@ public class KeyUtils {
      * @param algorithm The algorithm to use to decrypt the bytes.
      * @return The decrypted bytes.
      */
-    public static byte[] decryptBytes(String encryptedString, Key key, String algorithm)
+    public static byte[] decryptBytes(byte[] encryptedBytes, Key key, String algorithm)
             throws NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, IllegalBlockSizeException,
             BadPaddingException {
-
-        byte[] encryptedBytes = Base64.getDecoder().decode(encryptedString);
         Cipher decryptCipher = Cipher.getInstance(algorithm);
         decryptCipher.init(Cipher.DECRYPT_MODE, key);
         return decryptCipher.doFinal(encryptedBytes);

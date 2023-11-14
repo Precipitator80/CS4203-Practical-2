@@ -3,7 +3,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.security.PublicKey;
+import java.security.SecureRandom;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Queue;
@@ -48,10 +50,11 @@ public class ClientHandler implements Runnable {
 
     private void chatSelect()
             throws IOException {
-        switchHandleMode(HandleModes.CHAT_SELECT);
         clientOutput.println("Please select a chat number or type \"" + HandleModes.CHAT_CREATION_COMMAND
                 + "\" to start creating a new chat.");
         while (!clientSocket.isClosed()) {
+            switchHandleMode(HandleModes.CHAT_SELECT);
+
             // Ask for a chat.
             String userInputLine = clientInput.readLine();
             if (userInputLine.equals(HandleModes.CHAT_CREATION_COMMAND)) {
@@ -62,32 +65,41 @@ public class ClientHandler implements Runnable {
 
                     // Confirm choice and ask for a password.
                     clientOutput.println("You have selected " + chatID + ". Checking key.");
-                    switchHandleMode(HandleModes.CHALLENGE_RESPONSE);
-
-                    // Send a challenge to the client.
-                    String challenge = "This is your challenge!";
-                    clientOutput.println(challenge);
-                    String encryptedResponse = clientInput.readLine();
-
-                    try {
-                        PublicKey publicKey = DBUtils.readChatKey(chatID);
-                        String decryptedResponse = KeyUtils.decryptString(encryptedResponse, publicKey, KeyUtils.RSA);
-
-                        if (challenge.equals(decryptedResponse)) {
-                            // Enter a server chat room.
-                            chatBackend();
-                        } else {
-                            clientOutput.println("Invalid credentials. Please select a chat number.");
-                        }
-                    } catch (Exception e) {
-                        clientOutput.println(
-                                "Failed to check credentials against database. " + e.getStackTrace().toString());
-                        e.printStackTrace();
-                    }
+                    challengeResponse();
                 } catch (NumberFormatException e) {
                     clientOutput.println("Failed to read \"" + userInputLine + "\". Please enter a valid integer.");
                 }
             }
+        }
+    }
+
+    private void challengeResponse() throws IOException {
+        switchHandleMode(HandleModes.CHALLENGE_RESPONSE);
+
+        // Send a challenge to the client.
+        SecureRandom random = new SecureRandom();
+        byte[] challenge = new byte[245];
+        random.nextBytes(challenge);
+        String challengeString = Base64.getEncoder().encodeToString(challenge);
+        clientOutput.println(challengeString);
+
+        byte[] encryptedResponse = Base64.getDecoder().decode(clientInput.readLine());
+
+        try {
+            PublicKey publicKey = DBUtils.readChatKey(chatID);
+            byte[] decryptedResponse = KeyUtils.decryptBytes(encryptedResponse, publicKey, KeyUtils.RSA);
+
+            if (Arrays.equals(challenge, decryptedResponse)) {
+                // Enter a server chat room.
+                System.out.println("Passed challenge-response!");
+                chat();
+            } else {
+                clientOutput.println("Invalid credentials. Please select a chat number.");
+            }
+        } catch (Exception e) {
+            clientOutput.println(
+                    "Failed to check credentials against database. " + e.getStackTrace().toString());
+            e.printStackTrace();
         }
     }
 
@@ -99,7 +111,6 @@ public class ClientHandler implements Runnable {
 
         String userInputLine = clientInput.readLine();
         if (userInputLine.equals(HandleModes.EXIT_COMMAND)) {
-            switchHandleMode(HandleModes.CHAT_SELECT);
             return;
         }
 
@@ -113,15 +124,14 @@ public class ClientHandler implements Runnable {
             System.out.println("Created chat: " + chatID);
             clientOutput.println(chatID);
             System.out.println("Switching to new chat: " + chatID);
-            chatBackend();
+            chat(); // TODO Make sure handler can receive messages after chat creation.
         } catch (SQLException e) {
             System.out.println("Failed to create chat!");
             clientOutput.println("Failed to create chat! Returning to chat selection.");
         }
-        switchHandleMode(HandleModes.CHAT_SELECT);
     }
 
-    private void chatBackend() throws IOException {
+    private void chat() throws IOException {
         switchHandleMode(HandleModes.CHAT);
         clientOutput.println(
                 "Entered chat " + chatID
@@ -199,8 +209,10 @@ public class ClientHandler implements Runnable {
     }
 
     private void switchHandleMode(HandleModes newHandleMode) {
-        clientOutput.println(newHandleMode);
-        handleMode = newHandleMode;
+        if (handleMode != newHandleMode) {
+            clientOutput.println(newHandleMode);
+            handleMode = newHandleMode;
+        }
     }
 
     private void closeEverything() {
