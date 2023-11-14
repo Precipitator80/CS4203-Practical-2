@@ -30,12 +30,12 @@ CREATE TABLE chat_line (
 -- Create procedures
 /*----------------------------------------------*/
 -- Only allow reading a chat if the user is authorised.
-CREATE OR REPLACE PROCEDURE proc_read_chat(IN chat_id INT) BEGIN
+CREATE OR REPLACE PROCEDURE proc_read_chat(IN chat_id INT, IN offset_val INT) BEGIN
 SELECT line_text
 FROM chat_line
 WHERE chat_id = chat_line.chat_id
 ORDER BY chat_line.chat_id DESC
-LIMIT 10;
+LIMIT 10 OFFSET offset_val;
 END;
 /*----------------------------------------------*/
 -- Procedure to create a new chat, returning the ID.

@@ -86,14 +86,23 @@ public class DBUtils {
     }
 
     /**
-     * Attempts to read a given chat, passing in credentials.
-     * @param id The ID of the chat to enter.
-     * @param password The password of the chat.
+     * Attempts to read a given chat.
+     * @param id The ID of the chat to read from.
      * @return Messages from the chat.
      */
     public static Queue<String> readChat(int id) throws SQLException {
+        return readChat(id, 0);
+    }
+
+    /**
+     * Attempts to read a given chat.
+     * @param id The ID of the chat to read from.
+     * @param offset_val An offset to allow for reading beyond the last few messages.
+     * @return Messages from the cat.
+     */
+    public static Queue<String> readChat(int id, int offset_val) throws SQLException {
         try (Connection connection = openConnection();
-                PreparedStatement ps = readChatPS(connection, id);
+                PreparedStatement ps = readChatPS(connection, id, offset_val);
                 ResultSet resultSet = ps.executeQuery()) {
             Queue<String> messagesStack = new LinkedList<String>();
             while (resultSet.next()) {
@@ -103,10 +112,11 @@ public class DBUtils {
         }
     }
 
-    private static PreparedStatement readChatPS(Connection connection, int id)
+    private static PreparedStatement readChatPS(Connection connection, int id, int offset_val)
             throws SQLException {
-        PreparedStatement ps = connection.prepareStatement("CALL proc_read_chat(?)");
+        PreparedStatement ps = connection.prepareStatement("CALL proc_read_chat(?,?)");
         ps.setInt(1, id);
+        ps.setInt(2, offset_val);
         return ps;
     }
 

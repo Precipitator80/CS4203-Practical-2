@@ -2,6 +2,7 @@
 // Java Echo Server Example Code - Oracle - https://docs.oracle.com/javase/tutorial/networking/sockets/examples/EchoServer.java - Accessed 04.11.2023
 
 import java.net.*;
+import java.util.ArrayList;
 
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
@@ -28,6 +29,8 @@ public class SecureEchoServer extends AbstractEchoServer {
         try (SSLServerSocket serverSocket = (SSLServerSocket) sslsocketfactory.createServerSocket(port)) {
             System.out.println("Echo Server is running on port " + port);
             serverSocket.setNeedClientAuth(true);
+            ClientHandler.activeClientHandlers = new ArrayList<ClientHandler>();
+
             // Keep the server running indefinitely.
             while (!serverSocket.isClosed()) {
                 // Accept connections from clients attempting to connect.

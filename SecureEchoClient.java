@@ -45,7 +45,7 @@ public class SecureEchoClient extends AbstractEchoClient {
                 // Use a buffered reader to let the user send messages through the client.
                 BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in))) {
             socket.startHandshake();
-            System.out.println("Connected to Echo Server. Type '/exit' to quit.");
+            System.out.println("Connected to Echo Server. Type " + HandleModes.EXIT_COMMAND + " to quit.");
 
             // Wait for any messages from the server.
             listener(socket, serverInput);
@@ -116,12 +116,14 @@ public class SecureEchoClient extends AbstractEchoClient {
         chatSymmetricKey = KeyUtils.readAESKey(chatID);
         while (handleMode == HandleModes.CHAT) {
             String userInputLine;
-            if ((userInputLine = userInput.readLine()) != null) {
+            if ((userInputLine = userInput.readLine()) != null && userInputLine.length() > 0) {
                 // Check whether the user wants to quit first.
-                if (HandleModes.EXIT_COMMAND.equalsIgnoreCase(userInputLine)) {
+                if (userInputLine.charAt(0) == '/') {
                     serverOutput.println(userInputLine);
-                    handleMode = HandleModes.CHAT_SELECT;
-                    break;
+                    if (userInputLine.equals(HandleModes.EXIT_COMMAND)) {
+                        handleMode = HandleModes.CHAT_SELECT;
+                        break;
+                    }
                 }
 
                 // If the user does not want to quit, encrypt their chat message and send it to the server.
@@ -249,9 +251,9 @@ public class SecureEchoClient extends AbstractEchoClient {
                                                 String decryptedString = KeyUtils.decryptString(serverResponse,
                                                         chatSymmetricKey,
                                                         KeyUtils.AES);
-                                                System.out.println("Server response (decrypted): " + decryptedString);
+                                                System.out.println("> " + decryptedString);
                                             } catch (Exception e) {
-                                                System.out.println("Server response    (direct): " + serverResponse);
+                                                System.out.println("Server response: " + serverResponse);
                                             }
                                             break;
                                         case CHALLENGE_RESPONSE:

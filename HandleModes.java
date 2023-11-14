@@ -30,4 +30,5 @@ public enum HandleModes {
 
     public static final String CHAT_CREATION_COMMAND = "/create";
     public static final String EXIT_COMMAND = "/exit";
+    public static final String PREVIOUS_COMMAND = "/previous";
 }
