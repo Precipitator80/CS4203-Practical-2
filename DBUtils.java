@@ -131,10 +131,8 @@ public class DBUtils {
         try (Connection connection = openConnection();
                 PreparedStatement ps = readChatKeyPS(connection, id);
                 ResultSet resultSet = ps.executeQuery()) {
-            if (resultSet.next()) {
-                return KeyUtils.readRSAPublicKey(resultSet.getBytes(1));
-            }
-            return null;
+            resultSet.next();
+            return KeyUtils.readRSAPublicKey(resultSet.getBytes(1));
         }
     }
 
@@ -169,5 +167,21 @@ public class DBUtils {
         cs.setBytes(2, rsa_public_key);
         cs.registerOutParameter(3, Types.INTEGER);
         return cs;
+    }
+
+    public static String getChatName(int id) throws SQLException {
+        try (Connection connection = openConnection();
+                PreparedStatement ps = getChatPS(connection, id);
+                ResultSet resultSet = ps.executeQuery()) {
+            resultSet.next();
+            return resultSet.getString(1);
+        }
+    }
+
+    private static PreparedStatement getChatPS(Connection connection, int id)
+            throws SQLException {
+        PreparedStatement ps = connection.prepareStatement("SELECT chat_name FROM chat WHERE chat.id = (?)");
+        ps.setInt(1, id);
+        return ps;
     }
 }

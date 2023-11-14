@@ -141,12 +141,13 @@ public class ClientHandler implements Runnable {
     private void chat(int chatID) throws IOException {
         currentChat = chatID;
         switchHandleMode(HandleModes.CHAT);
-        clientOutput.println(
-                "Entered chat " + chatID
-                        + ". Printing latest messages. Use " + HandleModes.PREVIOUS_COMMAND
-                        + " with an offset value to load earlier messages (i.e. " + HandleModes.PREVIOUS_COMMAND
-                        + " 10).");
         try {
+            clientOutput.println("Entered chat " + chatID);
+            clientOutput.println("Chat name:");
+            clientOutput.println(DBUtils.getChatName(chatID));
+            clientOutput.println("Printing latest messages. Use " + HandleModes.PREVIOUS_COMMAND
+                    + " with an offset value to load earlier messages (i.e. " + HandleModes.PREVIOUS_COMMAND + " 10).");
+
             readChat(chatID, 0);
 
             System.out.println("Waiting for user input.");
