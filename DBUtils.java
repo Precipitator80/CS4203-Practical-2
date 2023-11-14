@@ -88,15 +88,6 @@ public class DBUtils {
     /**
      * Attempts to read a given chat.
      * @param id The ID of the chat to read from.
-     * @return Messages from the chat.
-     */
-    public static Queue<String> readChat(int id) throws SQLException {
-        return readChat(id, 0);
-    }
-
-    /**
-     * Attempts to read a given chat.
-     * @param id The ID of the chat to read from.
      * @param offset_val An offset to allow for reading beyond the last few messages.
      * @return Messages from the cat.
      */

@@ -17,8 +17,8 @@ public class ClientHandler implements Runnable {
     SSLSocket clientSocket;
     BufferedReader clientInput;
     PrintWriter clientOutput;
-    int chatID = -1;
     HandleModes handleMode;
+    int currentChat = -1;
 
     public ClientHandler(SSLSocket clientSocket) {
         this.clientSocket = clientSocket;
@@ -57,81 +57,89 @@ public class ClientHandler implements Runnable {
 
             // Ask for a chat.
             String userInputLine = clientInput.readLine();
-            if (userInputLine.equals(HandleModes.CHAT_CREATION_COMMAND)) {
+            if (HandleModes.CHAT_CREATION_COMMAND.equalsIgnoreCase(userInputLine)) {
                 chatCreation();
             } else {
                 try {
-                    chatID = Integer.parseInt(userInputLine);
+                    int chatID = Integer.parseInt(userInputLine);
 
                     // Confirm choice and ask for a password.
                     clientOutput.println("You have selected " + chatID + ". Checking key.");
-                    challengeResponse();
+                    challengeResponse(chatID);
                 } catch (NumberFormatException e) {
                     clientOutput.println("Failed to read \"" + userInputLine + "\". Please enter a valid integer.");
+                    continue;
                 }
             }
+
+            // Once the chat room has been exited, repeat the chat selection.
+            clientOutput.println(
+                    "Please select another chat number or type " + HandleModes.EXIT_COMMAND + " to disconnect.");
         }
     }
 
-    private void challengeResponse() throws IOException {
+    private void challengeResponse(int chatID) throws IOException {
         switchHandleMode(HandleModes.CHALLENGE_RESPONSE);
 
-        // Send a challenge to the client.
+        // Send a challenge to the client by generating random bytes to encrypt.
         SecureRandom random = new SecureRandom();
         byte[] challenge = new byte[245];
         random.nextBytes(challenge);
         String challengeString = Base64.getEncoder().encodeToString(challenge);
         clientOutput.println(challengeString);
 
+        // Wait for the response from the client.
         byte[] encryptedResponse = Base64.getDecoder().decode(clientInput.readLine());
-
         try {
+            // Read the chat's public key from the database to decrypt the response.
             PublicKey publicKey = DBUtils.readChatKey(chatID);
             byte[] decryptedResponse = KeyUtils.decryptBytes(encryptedResponse, publicKey, KeyUtils.RSA);
 
+            // If the decrypted response is the same as the original challenge, let the client enter the chat.
             if (Arrays.equals(challenge, decryptedResponse)) {
                 // Enter a server chat room.
                 System.out.println("Passed challenge-response!");
-                chat();
+                chat(chatID);
             } else {
-                clientOutput.println("Invalid credentials. Please select a chat number.");
+                clientOutput.println("Invalid credentials.");
             }
         } catch (Exception e) {
-            clientOutput.println(
-                    "Failed to check credentials against database. " + e.getStackTrace().toString());
+            clientOutput.println("Failed to check credentials against database. " + e.getMessage());
             e.printStackTrace();
         }
     }
 
     private void chatCreation() throws IOException {
         switchHandleMode(HandleModes.CHAT_CREATION);
-        clientOutput.println(
-                "Please write a name for your chat. Alternatively, type " + HandleModes.EXIT_COMMAND
-                        + " to cancel chat creation.");
+        clientOutput.println("Please write a name for your chat. Alternatively, type " + HandleModes.EXIT_COMMAND
+                + " to cancel chat creation.");
 
-        String userInputLine = clientInput.readLine();
-        if (userInputLine.equals(HandleModes.EXIT_COMMAND)) {
+        // Ask the user for a chat name.
+        String chatName = clientInput.readLine();
+
+        // Check whether the user wants to cancel chat creation.
+        if (HandleModes.EXIT_COMMAND.equalsIgnoreCase(chatName)) {
             return;
         }
 
-        String chat_name = userInputLine;
-
+        // If the user didn't quit, wait for the client to generate keys and send over the public key.
         String chatPublicKeyString = clientInput.readLine();
         byte[] rsa_public_key = Base64.getDecoder().decode(chatPublicKeyString);
         System.out.println("Received public key bytes: " + chatPublicKeyString);
+
+        // Attempt to create a chat with the given name and public key.
         try {
-            chatID = DBUtils.createChat(chat_name, rsa_public_key);
-            System.out.println("Created chat: " + chatID);
-            clientOutput.println(chatID);
-            System.out.println("Switching to new chat: " + chatID);
-            chat(); // TODO Make sure handler can receive messages after chat creation.
+            int chatID = DBUtils.createChat(chatName, rsa_public_key);
+            System.out.println("Created chat: " + chatID + ". Switching to it now.");
+            chat(chatID); // TODO Make sure handler can receive messages after chat creation.
         } catch (SQLException e) {
             System.out.println("Failed to create chat!");
-            clientOutput.println("Failed to create chat! Returning to chat selection.");
+            clientOutput.println("Failed to create chat!");
         }
     }
 
-    private void chat() throws IOException {
+    private void chat(int chatID) throws IOException {
+        currentChat = chatID;
         switchHandleMode(HandleModes.CHAT);
         clientOutput.println(
                 "Entered chat " + chatID
@@ -139,51 +147,38 @@ public class ClientHandler implements Runnable {
                         + " with an offset value to load earlier messages (i.e. " + HandleModes.PREVIOUS_COMMAND
                         + " 10).");
         try {
-            Queue<String> messages = DBUtils.readChat(chatID);
-
-            if (messages.size() == 0) {
-                clientOutput.println("No messages to display.");
-            } else {
-                while (messages.size() > 0) {
-                    clientOutput.println(messages.poll());
-                }
-            }
+            readChat(chatID, 0);
 
             System.out.println("Waiting for user input.");
-
             String inputLine;
             while ((inputLine = clientInput.readLine()) != null) {
-                System.out.println("Still waiting for user input.");
+                System.out.println("Got user input.");
                 if (inputLine.length() > 0) {
-                    System.out.println("Got user input.");
                     if (inputLine.charAt(0) != '/') {
                         System.out.println("Sending message to DB.");
-                        DBUtils.sendToChat(chatID, inputLine);
+                        try {
+                            DBUtils.sendToChat(chatID, inputLine);
+                        } catch (SQLException e) {
+                            clientOutput.println("Failed to send message!");
+                        }
 
+                        // Sync the message with other handlers in the same chat.
                         for (ClientHandler otherHandler : activeClientHandlers) {
                             if (otherHandler != this && otherHandler.handleMode == HandleModes.CHAT
-                                    && chatID == otherHandler.chatID) {
+                                    && chatID == otherHandler.currentChat) {
                                 otherHandler.clientOutput.println(inputLine);
                             }
                         }
                     } else {
-                        if (inputLine.equals(HandleModes.EXIT_COMMAND)) {
+                        if (HandleModes.EXIT_COMMAND.equalsIgnoreCase(inputLine)) {
                             System.out.println("User exited chat.");
                             break;
                         } else if (inputLine.contains(HandleModes.PREVIOUS_COMMAND)
                                 && inputLine.length() >= HandleModes.PREVIOUS_COMMAND.length() + 2) {
                             inputLine = inputLine.substring(HandleModes.PREVIOUS_COMMAND.length() + 1);
                             try {
-                                int previous = Integer.parseInt(inputLine);
-                                messages = DBUtils.readChat(chatID, previous);
-
-                                if (messages.size() == 0) {
-                                    clientOutput.println("No messages to display.");
-                                } else {
-                                    while (messages.size() > 0) {
-                                        clientOutput.println(messages.poll());
-                                    }
-                                }
+                                int offset = Integer.parseInt(inputLine);
+                                readChat(chatID, offset);
                             } catch (NumberFormatException e) {
                                 clientOutput.println(
                                         "Failed to read \"" + inputLine + "\". Please enter a valid integer.");
@@ -198,14 +193,19 @@ public class ClientHandler implements Runnable {
             clientOutput.println("Failed to read chat. Exiting chat.");
             clientOutput.println(e.toString());
         }
+        currentChat = -1;
+    }
 
-        // Once the chat room has been exited, repeat the chat selection.
-        chatID = -1;
-        switchHandleMode(HandleModes.CHAT_SELECT);
-        clientOutput
-                .println(
-                        "Exited chat. Please select another chat number or type " + HandleModes.EXIT_COMMAND
-                                + " to disconnect.");
+    private void readChat(int id, int offset_val) throws SQLException {
+        Queue<String> messages = DBUtils.readChat(id, offset_val);
+
+        if (messages.size() == 0) {
+            clientOutput.println("No messages to display.");
+        } else {
+            while (messages.size() > 0) {
+                clientOutput.println(messages.poll());
+            }
+        }
     }
 
     private void switchHandleMode(HandleModes newHandleMode) {
