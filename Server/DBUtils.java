@@ -19,14 +19,6 @@ import Shared.KeyUtils;
  * How should I use try-with-resources with JDBC? - Jeanne Boyarsky - https://stackoverflow.com/questions/8066501/how-should-i-use-try-with-resources-with-jdbc - Accessed 06.04.2023
  */
 public class DBUtils {
-    // final static String DB_URL = "jdbc:mariadb://localhost/cs3101p2";
-    // final static String USER = "root";
-    // final static String PASSWORD = "toor";
-
-    // final static String DB_URL = "jdbc:mariadb://bms1.teaching.cs.st-andrews.ac.uk/bms1_cs4203p2";
-    // final static String USER = "bms1";
-    // final static String PASSWORD = "3fpj3!3JZ2x5zT";
-
     // Variables to allow the controller to connect to the database.
     final String DB_URL;
     final String USER;
