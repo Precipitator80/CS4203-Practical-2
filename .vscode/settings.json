@@ -1,15 +1,6 @@
 {
     "java.project.referencedLibraries": [
-        "lib/**/*.jar",
-        "bcprov-jdk18on-176.jar",
-        "bctls-jdk18on-176.jar",
-        "Libraries/bcutil-jdk18on-176.jar",
-        "Libraries/bctls-jdk18on-176.jar",
-        "Libraries/bcprov-jdk18on-176.jar",
-        "Libraries/bcpkix-jdk18on-176.jar",
-        "Libraries/bcpg-jdk18on-176.jar",
-        "Libraries/bcmail-jdk18on-176.jar",
-        "Libraries/mariadb-java-client-3.3.0.jar"
+        "Libraries/**/*.jar"
     ],
     "sqltools.connections": [
         {
