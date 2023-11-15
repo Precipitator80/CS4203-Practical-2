@@ -18,7 +18,7 @@
             "request": "launch",
             "mainClass": "SecureChatServer",
             "projectName": "Practical 2_58731bf8",
-            "args": "Shared/ca-cert.pem Server/server-cert.pem Server/server-key.pem jdbc:mariadb://localhost/cs4203p2 root toor"
+            "args": "Shared/ca-cert.pem Server/server-cert.pem Server/server-key.pem jdbc:mariadb://bms1.teaching.cs.st-andrews.ac.uk/bms1_cs4203p2 bms1 3fpj3!3JZ2x5zT"
         }
     ]
 }
