@@ -18,13 +18,13 @@
                 "enableSsl": "Disabled"
             },
             "previewLimit": 50,
-            "server": "bms1.teaching.cs.st-andrews.ac.uk",
+            "server": "localhost",
             "port": 3306,
             "driver": "MariaDB",
-            "username": "bms1",
-            "password": "3fpj3!3JZ2x5zT",
-            "database": "bms1_cs4203p2",
-            "name": "School DB CS4203P2"
+            "username": "root",
+            "password": "toor",
+            "database": "cs4203p2",
+            "name": "Localhost CS4203P2"
         }
     ]
 }
